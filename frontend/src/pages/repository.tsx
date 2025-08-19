@@ -7,9 +7,14 @@ import CodeEditor from "@/components/CodeEditor";
 export default function RepositoryPage() {
   const { username, repoSlug } = useParams();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [activeFile, setActiveFile] = useState<string | null>(null);
 
   const handleFileSelect = (filePath: string) => {
     setSelectedFile(filePath);
+  };
+
+  const handleActiveFileChange = (filePath: string | null) => {
+    setActiveFile(filePath);
   };
 
   return (
@@ -20,6 +25,7 @@ export default function RepositoryPage() {
           {/* Left Panel - Directory Tree */}
           <aside className="col-span-1 border-r border-gray-200 bg-white">
             <DirectoryTree
+              activeFile={activeFile}
               repoSlug={repoSlug!}
               username={username!}
               onFileSelect={handleFileSelect}
@@ -27,11 +33,12 @@ export default function RepositoryPage() {
           </aside>
 
           {/* Right Panel - Code Editor */}
-          <main className="col-span-3 bg-white">
+          <main className="col-span-3 bg-white  overflow-auto">
             <CodeEditor
               filePath={selectedFile}
               repoSlug={repoSlug!}
               username={username!}
+              onActiveFileChange={handleActiveFileChange}
               onFileSelect={handleFileSelect}
             />
           </main>

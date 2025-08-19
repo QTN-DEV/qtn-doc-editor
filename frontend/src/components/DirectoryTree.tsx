@@ -6,6 +6,7 @@ import { fileService } from "@/services/fileService";
 interface DirectoryTreeProps {
   username: string;
   repoSlug: string;
+  activeFile: string | null;
   onFileSelect: (filePath: string) => void;
 }
 
@@ -18,6 +19,7 @@ interface TreeNode extends FileItem {
 export default function DirectoryTree({
   username,
   repoSlug,
+  activeFile,
   onFileSelect,
 }: DirectoryTreeProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
@@ -141,13 +143,14 @@ export default function DirectoryTree({
 
   const renderTreeItem = (item: TreeNode) => {
     const isExpanded = expandedFolders.has(item.path);
+    const isActive = activeFile === item.path;
 
     return (
       <div key={item.path} className="w-full">
         <button
           className={`w-full text-left px-3 py-2 hover:bg-gray-100 transition-colors flex items-center space-x-1 ${
             item.type === "directory" ? "cursor-pointer" : "cursor-pointer"
-          }`}
+          } ${isActive ? "bg-blue-100 text-blue-800 hover:bg-blue-200" : ""}`}
           style={{ paddingLeft: `${item.level * 16 + 12}px` }}
           onClick={() => handleItemClick(item)}
         >

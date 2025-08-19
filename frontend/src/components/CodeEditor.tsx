@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { python } from "@codemirror/lang-python";
+import { oneDark } from "@codemirror/theme-one-dark";
 
 import { fileService } from "@/services/fileService";
 import { Tab } from "@/types/files";
@@ -8,12 +11,14 @@ interface CodeEditorProps {
   repoSlug: string;
   filePath: string | null;
   onFileSelect: (filePath: string) => void;
+  onActiveFileChange: (filePath: string | null) => void;
 }
 
 export default function CodeEditor({
   username,
   repoSlug,
   filePath,
+  onActiveFileChange,
 }: CodeEditorProps) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -116,6 +121,11 @@ export default function CodeEditor({
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
 
+  // Notify parent component when active file changes
+  useEffect(() => {
+    onActiveFileChange(activeTab?.path || null);
+  }, [activeTab?.path, onActiveFileChange]);
+
   if (tabs.length === 0) {
     return (
       <div className="h-full flex flex-col bg-gray-900">
@@ -211,49 +221,24 @@ export default function CodeEditor({
       </div>
 
       {/* Code Editor */}
-      <div className="flex-1 overflow-hidden relative">
-        {/* Line Numbers */}
-        <div className="absolute left-0 top-0 bottom-0 w-12 bg-gray-800 border-r border-gray-700 text-right select-none">
-          <div className="py-4">
-            {activeTab?.content.split("\n").map((_, index) => (
-              <div
-                key={index}
-                className="px-2 py-0.5 text-xs text-gray-500 font-mono"
-              >
-                {index + 1}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Code Content */}
-        <div className="ml-12 h-full overflow-auto">
-          <div className="py-4 px-4">
-            {activeTab?.content.split("\n").map((line, index) => (
-              <div
-                key={index}
-                className="py-0.5 font-mono text-sm text-gray-200 leading-relaxed"
-              >
-                <span className="whitespace-pre">{line || " "}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="flex-1 overflow-auto">
+        <CodeMirror
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: true,
+            dropCursor: false,
+            indentOnInput: false,
+          }}
+          editable={false}
+          extensions={[python()]}
+          theme={oneDark}
+          value={activeTab?.content || ""}
+        />
 
         {/* Scrollbar Styling */}
         <style>{`
-          .overflow-auto::-webkit-scrollbar {
-            width: 8px;
-          }
-          .overflow-auto::-webkit-scrollbar-track {
-            background: #1f2937;
-          }
-          .overflow-auto::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 4px;
-          }
-          .overflow-auto::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
+          .cm-scroller {
+            font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace !important;
           }
           
           .scrollbar-tabs::-webkit-scrollbar {
