@@ -259,11 +259,6 @@ export default function DirectoryTree({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="border-b border-gray-200 p-2 bg-gray-50">
-        <h3 className="text-sm font-medium text-gray-900">Level 0 Editor</h3>
-      </div>
-
       {/* Tree View */}
       <div className="flex-1 overflow-y-auto">
         {treeData.length === 0 ? (

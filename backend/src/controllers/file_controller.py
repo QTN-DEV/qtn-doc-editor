@@ -51,6 +51,23 @@ class SaveFileResponse(BaseModel):
     encoding: str
 
 
+class ChangedFileResponse(BaseModel):
+    """Changed files response model."""
+
+    changed_files: List[str]
+    total_changed: int
+    last_check: str
+
+
+class FileChangeInfo(BaseModel):
+    """File change information model."""
+
+    path: str
+    last_modified: str
+    size: int
+    change_type: str  # "modified", "new", "small"
+
+
 @router.get("/repos/{username}/{repo_slug}/files", response_model=DirectoryResponse)
 async def list_directory(
     username: str,
@@ -301,3 +318,127 @@ async def save_file_content(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+
+
+@router.get(
+    "/repos/{username}/{repo_slug}/files/changed", response_model=ChangedFileResponse
+)
+async def get_changed_files(
+    username: str,
+    repo_slug: str,
+):
+    """Get list of changed files in the repository using git status."""
+    try:
+        # Construct the full repository path
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        if not repo_path.exists():
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Check if this is a git repository
+        git_dir = repo_path / ".git"
+        if not git_dir.exists() or not git_dir.is_dir():
+            raise HTTPException(
+                status_code=400, 
+                detail="Repository is not a git repository"
+            )
+
+        changed_files = []
+        import subprocess
+        import time
+        current_time = time.time()
+
+        try:
+            # Run git status to get changed files
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30  # 30 second timeout
+            )
+
+            if result.returncode != 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Git status failed: {result.stderr}"
+                )
+
+            # Parse git status output
+            for line in result.stdout.strip().split('\n'):
+                if not line.strip():
+                    continue
+                    
+                # Git status format: XY PATH
+                # X = status of index, Y = status of working tree
+                # Examples: M = modified, A = added, D = deleted, R = renamed, C = copied, U = unmerged
+                status_code = line[:2]
+                file_path = line[2:].strip()
+                
+                # Skip ignored files
+                if _should_ignore_file(repo_path, file_path):
+                    continue
+                
+                # Add file to changed list if it has any changes
+                if status_code != "  ":  # Not clean
+                    changed_files.append(file_path)
+
+        except subprocess.TimeoutExpired:
+            raise HTTPException(
+                status_code=500,
+                detail="Git status command timed out"
+            )
+        except FileNotFoundError:
+            raise HTTPException(
+                status_code=500,
+                detail="Git command not found on system"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error running git status: {str(e)}"
+            )
+
+        return ChangedFileResponse(
+            changed_files=changed_files,
+            total_changed=len(changed_files),
+            last_check=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_time))
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting changed files: {str(e)}")
+
+
+def _should_ignore_file(repo_path: Path, file_path: str) -> bool:
+    """Check if a file should be ignored based on .levelerignore patterns."""
+    levelerignore_path = repo_path / ".levelerignore"
+    if not levelerignore_path.exists() or not levelerignore_path.is_file():
+        return False
+        
+    try:
+        ignore_patterns = [
+            line.strip()
+            for line in levelerignore_path.read_text().splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+
+        for pattern in ignore_patterns:
+            if pattern.startswith("/"):
+                # Absolute pattern from repo root
+                if file_path == pattern[1:] or file_path.startswith(pattern[1:] + "/"):
+                    return True
+            elif pattern.endswith("/"):
+                # Directory pattern - check if file is in ignored directory
+                if file_path.startswith(pattern[:-1] + "/"):
+                    return True
+            else:
+                # Exact file match
+                if file_path == pattern:
+                    return True
+    except Exception:
+        # If we can't read the ignore file, don't ignore anything
+        pass
+        
+    return False

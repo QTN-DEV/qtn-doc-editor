@@ -69,4 +69,19 @@ export const fileService = {
 
     return response.json();
   },
+
+  async getChangedFiles(
+    username: string,
+    repoSlug: string,
+  ): Promise<{ changed_files: string[]; total_changed: number; last_check: string }> {
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/files/changed`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get changed files: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
 };
