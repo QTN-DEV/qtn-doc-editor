@@ -12,6 +12,8 @@ export default function GitTab({ username, repoSlug, onFileSelect }: GitTabProps
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastCheck, setLastCheck] = useState<string>("");
+  const [commitMessage, setCommitMessage] = useState("");
+  const [committing, setCommitting] = useState(false);
 
   const loadChangedFiles = async () => {
     setLoading(true);
@@ -25,6 +27,26 @@ export default function GitTab({ username, repoSlug, onFileSelect }: GitTabProps
       setError(err instanceof Error ? err.message : "Failed to load changed files");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCommit = async () => {
+    if (!commitMessage.trim() || committing) {
+      return;
+    }
+
+    setCommitting(true);
+    setError(null);
+
+    try {
+      await fileService.commitAndPush(username, repoSlug, commitMessage);
+      alert("Changes committed and pushed successfully!");
+      loadChangedFiles(); // Refresh status after commit
+      setCommitMessage("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to commit and push changes");
+    } finally {
+      setCommitting(false);
     }
   };
 
@@ -69,54 +91,35 @@ export default function GitTab({ username, repoSlug, onFileSelect }: GitTabProps
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-medium text-gray-900">Git Status</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              {changedFiles.length} file{changedFiles.length !== 1 ? 's' : ''} with changes
-            </p>
-            {lastCheck && (
-              <p className="text-xs text-gray-400 mt-1">
-                Last checked: {lastCheck}
-              </p>
-            )}
+      {/* Commit Section - Always visible when there are changes */}
+      {changedFiles.length > 0 && (
+        <div className="px-3 py-3 border-b border-gray-200 bg-gray-50">
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Commit Message
+            </label>
+            <textarea
+              className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={2}
+              placeholder="Enter commit message..."
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+            />
           </div>
-          <button
-            onClick={() => {
-              setLoading(true);
-              loadChangedFiles();
-            }}
-            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            title="Refresh git status"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              {changedFiles.length} file{changedFiles.length !== 1 ? 's' : ''} to commit
+            </span>
+            <button
+              onClick={handleCommit}
+              disabled={!commitMessage.trim() || committing}
+              className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed rounded transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Git Status Legend */}
-        {changedFiles.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <div className="text-xs text-gray-600">
-              <span className="font-medium">Status Legend:</span>
-              <span className="ml-2">M=Modified, A=Added, D=Deleted, R=Renamed, C=Copied, U=Unmerged</span>
-            </div>
+              {committing ? 'Committing...' : 'Commit & Push'}
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto">

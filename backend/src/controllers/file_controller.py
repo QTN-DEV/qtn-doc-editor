@@ -68,6 +68,20 @@ class FileChangeInfo(BaseModel):
     change_type: str  # "modified", "new", "small"
 
 
+class CommitRequest(BaseModel):
+    """Commit request model."""
+
+    message: str
+
+
+class CommitResponse(BaseModel):
+    """Commit response model."""
+
+    message: str
+    commit_hash: str
+    files_committed: int
+
+
 @router.get("/repos/{username}/{repo_slug}/files", response_model=DirectoryResponse)
 async def list_directory(
     username: str,
@@ -409,6 +423,129 @@ async def get_changed_files(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting changed files: {str(e)}")
+
+
+@router.post(
+    "/repos/{username}/{repo_slug}/git/commit", response_model=CommitResponse
+)
+async def commit_and_push(
+    username: str,
+    repo_slug: str,
+    commit_data: CommitRequest,
+):
+    """Commit and push changes to the repository."""
+    try:
+        # Construct the full repository path
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        if not repo_path.exists():
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Check if this is a git repository
+        git_dir = repo_path / ".git"
+        if not git_dir.exists() or not git_dir.is_dir():
+            raise HTTPException(
+                status_code=400, 
+                detail="Repository is not a git repository"
+            )
+
+        if not commit_data.message or not commit_data.message.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Commit message is required"
+            )
+
+        import subprocess
+        import time
+
+        try:
+            # Stage all changes
+            result = subprocess.run(
+                ["git", "add", "."],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to stage changes: {result.stderr}"
+                )
+
+            # Commit changes
+            result = subprocess.run(
+                ["git", "commit", "-m", commit_data.message.strip()],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to commit changes: {result.stderr}"
+                )
+
+            # Get commit hash
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode != 0:
+                commit_hash = "unknown"
+            else:
+                commit_hash = result.stdout.strip()[:8]  # First 8 characters
+
+            # Push changes
+            result = subprocess.run(
+                ["git", "push"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if result.returncode != 0:
+                # Commit succeeded but push failed
+                return CommitResponse(
+                    message="Changes committed successfully, but push failed. You may need to configure remote or credentials.",
+                    commit_hash=commit_hash,
+                    files_committed=1
+                )
+
+            return CommitResponse(
+                message="Changes committed and pushed successfully",
+                commit_hash=commit_hash,
+                files_committed=1
+            )
+
+        except subprocess.TimeoutExpired:
+            raise HTTPException(
+                status_code=500,
+                detail="Git operation timed out"
+            )
+        except FileNotFoundError:
+            raise HTTPException(
+                status_code=500,
+                detail="Git command not found on system"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error during git operations: {str(e)}"
+            )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error committing changes: {str(e)}")
 
 
 def _should_ignore_file(repo_path: Path, file_path: str) -> bool:

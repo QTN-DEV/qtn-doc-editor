@@ -84,4 +84,27 @@ export const fileService = {
 
     return response.json();
   },
+
+  async commitAndPush(
+    username: string,
+    repoSlug: string,
+    commitMessage: string,
+  ): Promise<{ message: string; commit_hash: string }> {
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/git/commit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: commitMessage }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to commit and push: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
 };
