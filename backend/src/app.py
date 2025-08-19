@@ -6,6 +6,7 @@ Create a FastAPI application with repository initialization endpoint and CORS en
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.controllers.init_controller import router as init_router
+from src.controllers.file_controller import router as file_router
 
 app = FastAPI()
 
@@ -20,6 +21,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(init_router, prefix="/api/v1")
+app.include_router(file_router, prefix="/api/v1")
 
 
 @app.get("/")

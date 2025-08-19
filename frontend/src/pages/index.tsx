@@ -11,13 +11,14 @@ export default function IndexPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!pat.trim() || !githubRepo.trim()) {
       Swal.fire({
         icon: "error",
         title: "Validation Error",
         text: "Both PAT and GitHub repository are required!",
       });
+
       return;
     }
 
@@ -28,6 +29,7 @@ export default function IndexPage() {
         title: "Invalid Format",
         text: "GitHub repository must be in format: username/repo-slug",
       });
+
       return;
     }
 
@@ -63,12 +65,14 @@ export default function IndexPage() {
 
         // Navigate to the repository page
         const [username, repoSlug] = githubRepo.split("/");
+
         navigate(`/0/${username}/${repoSlug}`);
       }
     } catch (error: any) {
       console.error("Error:", error);
-      
+
       let errorMessage = "An unexpected error occurred";
+
       if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
       } else if (error.message) {
@@ -89,48 +93,58 @@ export default function IndexPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Repository Initializer</h1>
-          <p className="text-gray-600">Enter your GitHub PAT and repository details</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Repository Initializer
+          </h1>
+          <p className="text-gray-600">
+            Enter your GitHub PAT and repository details
+          </p>
         </div>
-        
+
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="pat" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              className="block text-sm font-medium text-gray-700 mb-2"
+              htmlFor="pat"
+            >
               Personal Access Token (PAT)
             </label>
             <input
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               id="pat"
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
               type="password"
               value={pat}
               onChange={(e) => setPat(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-              required
             />
           </div>
-          
+
           <div>
-            <label htmlFor="githubRepo" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              className="block text-sm font-medium text-gray-700 mb-2"
+              htmlFor="githubRepo"
+            >
               GitHub Repository
             </label>
             <input
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               id="githubRepo"
+              placeholder="username/repo-slug"
               type="text"
               value={githubRepo}
               onChange={(e) => setGithubRepo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="username/repo-slug"
-              required
             />
             <p className="mt-1 text-sm text-gray-500">
               Format: username/repo-slug (e.g., octocat/Hello-World)
             </p>
           </div>
-          
+
           <button
-            type="submit"
-            disabled={isLoading}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading}
+            type="submit"
           >
             {isLoading ? "Initializing..." : "Initialize Repository"}
           </button>
