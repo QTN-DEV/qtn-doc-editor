@@ -32,6 +32,7 @@ export default function RepositoryPage() {
               filePath={selectedFile}
               repoSlug={repoSlug!}
               username={username!}
+              onFileSelect={handleFileSelect}
             />
           </main>
         </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import { FileItem } from "@/types/files";
 import { fileService } from "@/services/fileService";
 
@@ -22,23 +23,29 @@ export default function DirectoryTree({
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(),
+  );
 
   const loadDirectory = async (path: string = "") => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fileService.listDirectory(username, repoSlug, path);
-      const items = response.items.map(item => ({
+      const response = await fileService.listDirectory(
+        username,
+        repoSlug,
+        path,
+      );
+      const items = response.items.map((item) => ({
         ...item,
-        level: path ? path.split('/').length : 0,
-        isExpanded: false
+        level: path ? path.split("/").length : 0,
+        isExpanded: false,
       }));
-      
+
       if (path) {
         // Update existing tree structure
-        setTreeData(prevData => updateTreeData(prevData, path, items));
+        setTreeData((prevData) => updateTreeData(prevData, path, items));
       } else {
         // Root level
         setTreeData(items);
@@ -50,61 +57,72 @@ export default function DirectoryTree({
     }
   };
 
-  const updateTreeData = (currentData: TreeNode[], targetPath: string, newItems: TreeNode[]): TreeNode[] => {
-    const pathParts = targetPath.split('/');
-    
+  const updateTreeData = (
+    currentData: TreeNode[],
+    targetPath: string,
+    newItems: TreeNode[],
+  ): TreeNode[] => {
+    const pathParts = targetPath.split("/");
+
     const updateNode = (nodes: TreeNode[], level: number): TreeNode[] => {
-      return nodes.map(node => {
-        if (node.path === targetPath && node.type === 'directory') {
+      return nodes.map((node) => {
+        if (node.path === targetPath && node.type === "directory") {
           return {
             ...node,
             children: newItems,
-            isExpanded: true
+            isExpanded: true,
           };
         } else if (node.children && level < pathParts.length) {
           return {
             ...node,
-            children: updateNode(node.children, level + 1)
+            children: updateNode(node.children, level + 1),
           };
         }
+
         return node;
       });
     };
-    
+
     return updateNode(currentData, 0);
   };
 
   const toggleFolder = async (item: TreeNode) => {
-    if (item.type !== 'directory') return;
+    if (item.type !== "directory") return;
 
     if (expandedFolders.has(item.path)) {
       // Collapse folder
-      setExpandedFolders(prev => {
+      setExpandedFolders((prev) => {
         const newSet = new Set(prev);
+
         newSet.delete(item.path);
+
         return newSet;
       });
-      
+
       // Update tree data to collapse
-      setTreeData(prevData => collapseFolder(prevData, item.path));
+      setTreeData((prevData) => collapseFolder(prevData, item.path));
     } else {
       // Expand folder
-      setExpandedFolders(prev => new Set(prev).add(item.path));
-      
+      setExpandedFolders((prev) => new Set(prev).add(item.path));
+
+      // Always try to load folder contents if not already loaded
       if (!item.children) {
-        // Load folder contents
         await loadDirectory(item.path);
       }
     }
   };
 
-  const collapseFolder = (nodes: TreeNode[], targetPath: string): TreeNode[] => {
-    return nodes.map(node => {
+  const collapseFolder = (
+    nodes: TreeNode[],
+    targetPath: string,
+  ): TreeNode[] => {
+    return nodes.map((node) => {
       if (node.path === targetPath) {
         return { ...node, isExpanded: false };
       } else if (node.children) {
         return { ...node, children: collapseFolder(node.children, targetPath) };
       }
+
       return node;
     });
   };
@@ -123,39 +141,40 @@ export default function DirectoryTree({
 
   const renderTreeItem = (item: TreeNode) => {
     const isExpanded = expandedFolders.has(item.path);
-    const hasChildren = item.children && item.children.length > 0;
-    const canExpand = item.type === 'directory' && hasChildren;
 
     return (
       <div key={item.path} className="w-full">
         <button
-                          className={`w-full text-left px-3 py-2 hover:bg-gray-100 transition-colors flex items-center space-x-1 ${
-                  item.type === "directory"
-                    ? "cursor-pointer"
-                    : "cursor-pointer"
-                }`}
+          className={`w-full text-left px-3 py-2 hover:bg-gray-100 transition-colors flex items-center space-x-1 ${
+            item.type === "directory" ? "cursor-pointer" : "cursor-pointer"
+          }`}
+          style={{ paddingLeft: `${item.level * 16 + 12}px` }}
           onClick={() => handleItemClick(item)}
-          style={{ paddingLeft: `${(item.level * 16) + 12}px` }}
         >
           {/* Expand/Collapse arrow for directories */}
-          {item.type === 'directory' && (
+          {item.type === "directory" && (
             <div className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-              {canExpand ? (
-                <svg
-                  className={`w-3 h-3 text-gray-500 transition-transform ${
-                    isExpanded ? 'rotate-90' : ''
-                  }`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <div className="w-3 h-3" />
-              )}
+              <svg
+                className={`w-3 h-3 text-gray-500 transition-transform ${
+                  isExpanded ? "rotate-90" : ""
+                }`}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  clipRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  fillRule="evenodd"
+                />
+              </svg>
             </div>
           )}
-          
+
+          {/* Placeholder for non-directory items to align icons */}
+          {item.type !== "directory" && (
+            <div className="flex-shrink-0 w-4 h-4" />
+          )}
+
           {/* Icon */}
           <div className="flex-shrink-0 w-4 h-4">
             {item.type === "directory" ? (
@@ -195,16 +214,14 @@ export default function DirectoryTree({
 
           {/* Name */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-gray-900 truncate">
-              {item.name}
-            </p>
+            <p className="text-sm text-gray-900 truncate">{item.name}</p>
           </div>
         </button>
 
         {/* Render children if expanded */}
         {isExpanded && item.children && (
           <div className="w-full">
-            {item.children.map(child => renderTreeItem(child))}
+            {item.children.map((child) => renderTreeItem(child))}
           </div>
         )}
       </div>
@@ -239,6 +256,11 @@ export default function DirectoryTree({
 
   return (
     <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="border-b border-gray-200 p-2 bg-gray-50">
+        <h3 className="text-sm font-medium text-gray-900">Level 0 Editor</h3>
+      </div>
+
       {/* Tree View */}
       <div className="flex-1 overflow-y-auto">
         {treeData.length === 0 ? (
@@ -247,7 +269,7 @@ export default function DirectoryTree({
           </div>
         ) : (
           <div className="py-2">
-            {treeData.map(item => renderTreeItem(item))}
+            {treeData.map((item) => renderTreeItem(item))}
           </div>
         )}
       </div>

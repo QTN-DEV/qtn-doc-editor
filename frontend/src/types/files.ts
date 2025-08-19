@@ -16,3 +16,11 @@ export interface FileContentResponse {
   content: string;
   encoding: string;
 }
+
+export interface Tab {
+  id: string;
+  path: string;
+  name: string;
+  content: string;
+  isActive: boolean;
+}
