@@ -42,4 +42,31 @@ export const fileService = {
 
     return response.json();
   },
+
+  async saveFile(
+    username: string,
+    repoSlug: string,
+    path: string,
+    content: string,
+    encoding: string = "utf-8",
+  ): Promise<{ message: string; encoding: string }> {
+    const params = new URLSearchParams({ path });
+
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/files/content?${params.toString()}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content, encoding }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to save file: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
 };

@@ -36,6 +36,21 @@ class FileContentResponse(BaseModel):
     encoding: str
 
 
+class SaveFileRequest(BaseModel):
+    """Save file request model."""
+
+    content: str
+    encoding: str = "utf-8"
+
+
+class SaveFileResponse(BaseModel):
+    """Save file response model."""
+
+    path: str
+    message: str
+    encoding: str
+
+
 @router.get("/repos/{username}/{repo_slug}/files", response_model=DirectoryResponse)
 async def list_directory(
     username: str,
@@ -202,3 +217,87 @@ async def get_file_content(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
+@router.put(
+    "/repos/{username}/{repo_slug}/files/content", response_model=SaveFileResponse
+)
+async def save_file_content(
+    username: str,
+    repo_slug: str,
+    path: str = Query(description="File path relative to repository root"),
+    file_data: SaveFileRequest = None,
+):
+    """Save content to a specific file."""
+    try:
+        if not path:
+            raise HTTPException(status_code=400, detail="File path is required")
+
+        if not file_data:
+            raise HTTPException(status_code=400, detail="File content is required")
+
+        # Construct the full file path
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        file_path = repo_path / path
+
+        # Check if repository exists
+        if not repo_path.exists():
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Check if file should be ignored
+        levelerignore_path = repo_path / ".levelerignore"
+        if levelerignore_path.exists() and levelerignore_path.is_file():
+            try:
+                ignore_patterns = [
+                    line.strip()
+                    for line in levelerignore_path.read_text().splitlines()
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+
+                for pattern in ignore_patterns:
+                    if pattern.startswith("/"):
+                        # Absolute pattern from repo root
+                        if path == pattern[1:] or path.startswith(pattern[1:] + "/"):
+                            raise HTTPException(
+                                status_code=403,
+                                detail="File is ignored by .levelerignore",
+                            )
+                    elif pattern.endswith("/"):
+                        # Directory pattern - check if file is in ignored directory
+                        if path.startswith(pattern[:-1] + "/"):
+                            raise HTTPException(
+                                status_code=403, detail="File is in ignored directory"
+                            )
+                    else:
+                        # Exact file match
+                        if path == pattern:
+                            raise HTTPException(
+                                status_code=403,
+                                detail="File is ignored by .levelerignore",
+                            )
+            except Exception:
+                # If we can't read the ignore file, continue without it
+                pass
+
+        # Ensure the parent directory exists
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write file content
+        try:
+            file_path.write_text(file_data.content, encoding=file_data.encoding)
+        except Exception as write_error:
+            raise HTTPException(
+                status_code=500, detail=f"Error writing file: {str(write_error)}"
+            )
+
+        return SaveFileResponse(
+            path=path,
+            message="File saved successfully",
+            encoding=file_data.encoding,
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")

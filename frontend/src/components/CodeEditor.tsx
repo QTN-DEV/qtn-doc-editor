@@ -22,6 +22,25 @@ export default function CodeEditor({
 }: CodeEditorProps) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [modifiedTabs, setModifiedTabs] = useState<Set<string>>(new Set());
+
+  // Handle Ctrl+W keyboard shortcut
+  useEffect(() => {
+    // Prevent browser from closing the page/tab
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (tabs.length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [tabs, activeTabId]);
 
   // Add new file to tabs when filePath changes
   useEffect(() => {
@@ -94,12 +113,19 @@ export default function CodeEditor({
   const handleTabClose = (tabId: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
+    if (modifiedTabs.has(tabId)) {
+      const confirm = window.confirm("You have unsaved changes. Are you sure you want to close this tab?");
+      if (!confirm) {
+        return;
+      }
+    }
+
     setTabs((prevTabs) => {
       const updatedTabs = prevTabs.filter((tab) => tab.id !== tabId);
 
       if (updatedTabs.length === 0) {
         setActiveTabId(null);
-
+        setModifiedTabs(new Set());
         return [];
       }
 
@@ -117,6 +143,55 @@ export default function CodeEditor({
 
       return updatedTabs;
     });
+
+    // Remove the closed tab from modified tabs
+    setModifiedTabs(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(tabId);
+      return newSet;
+    });
+  };
+
+  const handleContentChange = (value: string) => {
+    if (!activeTabId) return;
+    
+    // Mark the active tab as modified
+    setModifiedTabs(prev => new Set(prev).add(activeTabId));
+    
+    // Update the tab content
+    setTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === activeTabId 
+          ? { ...tab, content: value }
+          : tab
+      )
+    );
+  };
+
+  const handleSaveFile = async () => {
+    if (!activeTabId || !activeTab) return;
+    
+    try {
+      await fileService.saveFile(
+        username,
+        repoSlug,
+        activeTab.path,
+        activeTab.content
+      );
+      
+      // Remove the tab from modified tabs after successful save
+      setModifiedTabs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(activeTabId);
+        return newSet;
+      });
+      
+      // Show success feedback (you could add a toast notification here)
+      console.log("File saved successfully");
+    } catch (error) {
+      console.error("Failed to save file:", error);
+      // You could add error handling/notification here
+    }
   };
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
@@ -196,6 +271,9 @@ export default function CodeEditor({
               </svg>
               <span className="text-sm font-medium truncate max-w-32">
                 {tab.name}
+                {modifiedTabs.has(tab.id) && (
+                  <span className="ml-1 text-red-500">*</span>
+                )}
               </span>
               <button
                 className="ml-2 text-gray-500 hover:text-gray-300 transition-colors"
@@ -217,6 +295,32 @@ export default function CodeEditor({
               </button>
             </button>
           ))}
+          
+          {/* Save Button */}
+          {modifiedTabs.size > 0 && (
+            <div className="ml-auto px-4 py-2">
+              <button
+                className="flex items-center px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
+                onClick={handleSaveFile}
+                title="Save file (Ctrl+S)"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+                Save
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -229,10 +333,11 @@ export default function CodeEditor({
             dropCursor: false,
             indentOnInput: false,
           }}
-          editable={false}
+          editable={true}
           extensions={[python()]}
           theme={oneDark}
           value={activeTab?.content || ""}
+          onChange={handleContentChange}
         />
 
         {/* Scrollbar Styling */}
