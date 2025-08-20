@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import List
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+from fnmatch import fnmatch
+
 
 router = APIRouter()
 
@@ -146,6 +148,9 @@ async def list_directory(
     path: str = Query(
         default="", description="Directory path relative to repository root"
     ),
+    filter: str = Query(
+        default="", description="Filter for file extensions (e.g., '*.py,*.js')"
+    ),
 ):
     """List directory contents for a repository."""
     try:
@@ -177,6 +182,13 @@ async def list_directory(
                 # If we can't read the ignore file, continue without it
                 pass
 
+        # Parse filter string into list of patterns
+        filter_patterns = []
+        if filter:
+            # Accept comma-separated or semicolon-separated
+            filter_patterns = [f.strip() for f in filter.replace(";", ",").split(",") if f.strip()]
+        # If filter is empty, show all files
+
         items = []
         for item in target_path.iterdir():
             # Check if item should be ignored
@@ -186,9 +198,7 @@ async def list_directory(
             for pattern in ignore_patterns:
                 if pattern.startswith("/"):
                     # Absolute pattern from repo root
-                    if item_relative_path == pattern[
-                        1:
-                    ] or item_relative_path.startswith(pattern[1:] + "/"):
+                    if item_relative_path == pattern[1:] or item_relative_path.startswith(pattern[1:] + "/"):
                         should_ignore = True
                         break
                 elif pattern.endswith("/"):
@@ -207,6 +217,23 @@ async def list_directory(
 
             if should_ignore:
                 continue
+
+            # Filtering logic: always include directories, filter files if filter_patterns is set
+            if item.is_file() and filter_patterns:
+                # Match against name and/or extension
+                matched = False
+                for pat in filter_patterns:
+                    # If pattern contains a slash, match against relative path; else, match against name
+                    if "/" in pat:
+                        if fnmatch(item_relative_path, pat):
+                            matched = True
+                            break
+                    else:
+                        if fnmatch(item.name, pat):
+                            matched = True
+                            break
+                if not matched:
+                    continue  # Skip this file
 
             file_info = {
                 "name": item.name,

@@ -5,7 +5,7 @@ import DirectoryTree from "@/components/DirectoryTree";
 import CodeEditor from "@/components/CodeEditor";
 import GitTab from "@/components/GitTab";
 
-export default function RepositoryPage() {
+export default function Level0EditorPage() {
   const { username, repoSlug } = useParams();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [activeFile, setActiveFile] = useState<string | null>(null);
@@ -28,9 +28,11 @@ export default function RepositoryPage() {
           <aside className="col-span-1 border-r border-gray-200 bg-white">
             {/* Level 0 Editor Title */}
             <div className="px-4 py-3 bg-blue-50 border-b border-blue-200">
-              <h2 className="text-sm font-semibold text-blue-900">Level 0 Editor</h2>
+              <h2 className="text-sm font-semibold text-blue-900">
+                Level 0 Editor
+              </h2>
             </div>
-            
+
             {/* Tab Navigation */}
             <div className="bg-gray-100 border-b border-gray-200">
               <div className="flex">
@@ -80,8 +82,8 @@ export default function RepositoryPage() {
                 }`}
               >
                 <GitTab
-                  username={username!}
                   repoSlug={repoSlug!}
+                  username={username!}
                   onFileSelect={handleFileSelect}
                 />
               </div>

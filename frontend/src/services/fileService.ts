@@ -6,12 +6,17 @@ export const fileService = {
   async listDirectory(
     username: string,
     repoSlug: string,
-    path: string = ""
+    path: string = "",
+    filter?: string[]
   ): Promise<DirectoryResponse> {
     const params = new URLSearchParams();
 
     if (path) {
       params.append("path", path);
+    }
+
+    if (filter) {
+      params.append("filter", filter.join(","));
     }
 
     const response = await fetch(

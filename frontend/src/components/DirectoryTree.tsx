@@ -13,6 +13,7 @@ interface DirectoryTreeProps {
   repoSlug: string;
   activeFile: string | null;
   onFileSelect: (filePath: string) => void;
+  filter?: string[];
 }
 
 interface TreeNode extends FileItem {
@@ -25,6 +26,7 @@ export default function DirectoryTree({
   repoSlug,
   activeFile,
   onFileSelect,
+  filter,
 }: DirectoryTreeProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -87,6 +89,7 @@ export default function DirectoryTree({
         username,
         repoSlug,
         path,
+        filter,
       );
       const items = response.items.map((item) => ({
         ...item,
