@@ -51,6 +51,63 @@ class SaveFileResponse(BaseModel):
     encoding: str
 
 
+class CreateFileRequest(BaseModel):
+    """Create file request model."""
+
+    filename: str
+    content: str = ""
+    encoding: str = "utf-8"
+
+
+class CreateFileResponse(BaseModel):
+    """Create file response model."""
+
+    path: str
+    message: str
+    encoding: str
+
+
+class CreateDirectoryRequest(BaseModel):
+    """Create directory request model."""
+
+    dirname: str
+
+
+class CreateDirectoryResponse(BaseModel):
+    """Create directory response model."""
+
+    path: str
+    message: str
+
+
+class DeleteFileRequest(BaseModel):
+    """Delete file request model."""
+
+    path: str
+
+
+class DeleteFileResponse(BaseModel):
+    """Delete file response model."""
+
+    path: str
+    message: str
+
+
+class RenameFileRequest(BaseModel):
+    """Rename file request model."""
+
+    old_path: str
+    new_name: str
+
+
+class RenameFileResponse(BaseModel):
+    """Rename file response model."""
+
+    old_path: str
+    new_path: str
+    message: str
+
+
 class ChangedFileResponse(BaseModel):
     """Changed files response model."""
 
@@ -332,6 +389,287 @@ async def save_file_content(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+
+
+@router.post(
+    "/repos/{username}/{repo_slug}/files/create", response_model=CreateFileResponse
+)
+async def create_file(
+    username: str,
+    repo_slug: str,
+    file_data: CreateFileRequest,
+):
+    """Create a new file in the repository."""
+    try:
+        if not file_data.filename:
+            raise HTTPException(status_code=400, detail="Filename is required")
+
+        # Construct the full file path
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        file_path = repo_path / file_data.filename
+
+        # Check if repository exists
+        if not repo_path.exists():
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Check if file already exists
+        if file_path.exists():
+            raise HTTPException(status_code=409, detail="File already exists")
+
+        # Ensure the parent directory exists
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write empty content to the new file
+        try:
+            file_path.write_text(file_data.content, encoding=file_data.encoding)
+        except Exception as write_error:
+            raise HTTPException(
+                status_code=500, detail=f"Error creating file: {str(write_error)}"
+            )
+
+        return CreateFileResponse(
+            path=str(file_path.relative_to(repo_path)),
+            message="File created successfully",
+            encoding=file_data.encoding,
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating file: {str(e)}")
+
+
+@router.post(
+    "/repos/{username}/{repo_slug}/files/create-directory", response_model=CreateDirectoryResponse
+)
+async def create_directory(
+    username: str,
+    repo_slug: str,
+    dir_data: CreateDirectoryRequest,
+):
+    """Create a new directory in the repository."""
+    try:
+        if not dir_data.dirname:
+            raise HTTPException(status_code=400, detail="Directory name is required")
+
+        # Construct the full directory path
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        dir_path = repo_path / dir_data.dirname
+
+        # Check if repository exists
+        if not repo_path.exists():
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Check if directory already exists
+        if dir_path.exists():
+            raise HTTPException(status_code=409, detail="Directory already exists")
+
+        # Ensure the parent directory exists
+        dir_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create the new directory
+        try:
+            dir_path.mkdir(parents=True, exist_ok=False)
+        except Exception as create_error:
+            raise HTTPException(
+                status_code=500, detail=f"Error creating directory: {str(create_error)}"
+            )
+
+        return CreateDirectoryResponse(
+            path=str(dir_path.relative_to(repo_path)),
+            message="Directory created successfully",
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating directory: {str(e)}")
+
+
+@router.delete(
+    "/repos/{username}/{repo_slug}/files/delete", response_model=DeleteFileResponse
+)
+async def delete_file(
+    username: str,
+    repo_slug: str,
+    file_data: DeleteFileRequest,
+):
+    """Delete a specific file or directory from the repository."""
+    try:
+        if not file_data.path:
+            raise HTTPException(status_code=400, detail="File path is required")
+
+        # Construct the full file path
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        target_path = repo_path / file_data.path
+
+        # Check if repository exists
+        if not repo_path.exists():
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Check if file/directory exists
+        if not target_path.exists():
+            raise HTTPException(status_code=404, detail="File or directory not found")
+
+        # Check if file should be ignored
+        levelerignore_path = repo_path / ".levelerignore"
+        if levelerignore_path.exists() and levelerignore_path.is_file():
+            try:
+                ignore_patterns = [
+                    line.strip()
+                    for line in levelerignore_path.read_text().splitlines()
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+
+                for pattern in ignore_patterns:
+                    if pattern.startswith("/"):
+                        # Absolute pattern from repo root
+                        if file_data.path == pattern[1:] or file_data.path.startswith(pattern[1:] + "/"):
+                            raise HTTPException(
+                                status_code=403,
+                                detail="File is ignored by .levelerignore",
+                            )
+                    elif pattern.endswith("/"):
+                        # Directory pattern - check if file is in ignored directory
+                        if file_data.path.startswith(pattern[:-1] + "/"):
+                            raise HTTPException(
+                                status_code=403, detail="File is in ignored directory"
+                            )
+                    else:
+                        # Exact file match
+                        if file_data.path == pattern:
+                            raise HTTPException(
+                                status_code=403,
+                                detail="File is ignored by .levelerignore",
+                            )
+            except Exception:
+                # If we can't read the ignore file, continue without it
+                pass
+
+        # Delete the file or directory
+        try:
+            if target_path.is_file():
+                target_path.unlink()
+            elif target_path.is_dir():
+                import shutil
+                shutil.rmtree(target_path)
+            else:
+                raise HTTPException(status_code=400, detail="Path is neither a file nor directory")
+        except Exception as delete_error:
+            raise HTTPException(
+                status_code=500, detail=f"Error deleting file/directory: {str(delete_error)}"
+            )
+
+        return DeleteFileResponse(
+            path=file_data.path,
+            message="File or directory deleted successfully",
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting file/directory: {str(e)}")
+
+
+@router.put(
+    "/repos/{username}/{repo_slug}/files/rename", response_model=RenameFileResponse
+)
+async def rename_file(
+    username: str,
+    repo_slug: str,
+    file_data: RenameFileRequest,
+):
+    """Rename a file or directory in the repository."""
+    try:
+        if not file_data.old_path:
+            raise HTTPException(status_code=400, detail="Old path is required")
+
+        if not file_data.new_name:
+            raise HTTPException(status_code=400, detail="New name is required")
+
+        # Construct the full file paths
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        old_path = repo_path / file_data.old_path
+        
+        # Calculate new path
+        old_path_parts = Path(file_data.old_path).parts
+        if len(old_path_parts) > 1:
+            # File is in a subdirectory
+            parent_dir = "/".join(old_path_parts[:-1])
+            new_path = repo_path / parent_dir / file_data.new_name
+        else:
+            # File is in root directory
+            new_path = repo_path / file_data.new_name
+
+        # Check if repository exists
+        if not repo_path.exists():
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Check if old file/directory exists
+        if not old_path.exists():
+            raise HTTPException(status_code=404, detail="File or directory not found")
+
+        # Check if new name already exists
+        if new_path.exists():
+            raise HTTPException(status_code=409, detail="A file or directory with this name already exists")
+
+        # Check if old file should be ignored
+        levelerignore_path = repo_path / ".levelerignore"
+        if levelerignore_path.exists() and levelerignore_path.is_file():
+            try:
+                ignore_patterns = [
+                    line.strip()
+                    for line in levelerignore_path.read_text().splitlines()
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+
+                for pattern in ignore_patterns:
+                    if pattern.startswith("/"):
+                        # Absolute pattern from repo root
+                        if file_data.old_path == pattern[1:] or file_data.old_path.startswith(pattern[1:] + "/"):
+                            raise HTTPException(
+                                status_code=403,
+                                detail="File is ignored by .levelerignore",
+                            )
+                    elif pattern.endswith("/"):
+                        # Directory pattern - check if file is in ignored directory
+                        if file_data.old_path.startswith(pattern[:-1] + "/"):
+                            raise HTTPException(
+                                status_code=403, detail="File is in ignored directory"
+                            )
+                    else:
+                        # Exact file match
+                        if file_data.old_path == pattern:
+                            raise HTTPException(
+                                status_code=403,
+                                detail="File is ignored by .levelerignore",
+                            )
+            except Exception:
+                # If we can't read the ignore file, continue without it
+                pass
+
+        # Rename the file or directory
+        try:
+            old_path.rename(new_path)
+        except Exception as rename_error:
+            raise HTTPException(
+                status_code=500, detail=f"Error renaming file/directory: {str(rename_error)}"
+            )
+
+        return RenameFileResponse(
+            old_path=file_data.old_path,
+            new_path=str(new_path.relative_to(repo_path)),
+            message="File or directory renamed successfully",
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error renaming file/directory: {str(e)}")
 
 
 @router.get(

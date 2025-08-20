@@ -30,17 +30,54 @@ export default function CodeEditor({
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (tabs.length > 0) {
         e.preventDefault();
-        e.returnValue = '';
-        return '';
+        e.returnValue = "";
+
+        return "";
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [tabs, activeTabId]);
+
+  useEffect(() => {
+    // Listener function for file deletion
+    const handleDeleteEvent: EventListener = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+
+      setTabs((prevTabs) => prevTabs.filter((tab) => tab.path !== detail));
+    };
+
+    // Listener function for file rename
+    const handleRenameEvent: EventListener = (event: Event) => {
+      const detail = (event as CustomEvent<{ oldPath: string; newPath: string }>).detail;
+
+      setTabs((prevTabs) =>
+        prevTabs.map((tab) =>
+          tab.path === detail.oldPath
+            ? {
+                ...tab,
+                path: detail.newPath,
+                name: detail.newPath.split("/").pop() || "",
+              }
+            : tab
+        )
+      );
+    };
+
+    // Register listeners
+    window.addEventListener("file-deleted", handleDeleteEvent);
+    window.addEventListener("file-renamed", handleRenameEvent);
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener("file-deleted", handleDeleteEvent);
+      window.removeEventListener("file-renamed", handleRenameEvent);
+    };
+  }, []);
 
   // Add new file to tabs when filePath changes
   useEffect(() => {
@@ -114,7 +151,10 @@ export default function CodeEditor({
     e.stopPropagation();
 
     if (modifiedTabs.has(tabId)) {
-      const confirm = window.confirm("You have unsaved changes. Are you sure you want to close this tab?");
+      const confirm = window.confirm(
+        "You have unsaved changes. Are you sure you want to close this tab?",
+      );
+
       if (!confirm) {
         return;
       }
@@ -126,6 +166,7 @@ export default function CodeEditor({
       if (updatedTabs.length === 0) {
         setActiveTabId(null);
         setModifiedTabs(new Set());
+
         return [];
       }
 
@@ -145,47 +186,49 @@ export default function CodeEditor({
     });
 
     // Remove the closed tab from modified tabs
-    setModifiedTabs(prev => {
+    setModifiedTabs((prev) => {
       const newSet = new Set(prev);
+
       newSet.delete(tabId);
+
       return newSet;
     });
   };
 
   const handleContentChange = (value: string) => {
     if (!activeTabId) return;
-    
+
     // Mark the active tab as modified
-    setModifiedTabs(prev => new Set(prev).add(activeTabId));
-    
+    setModifiedTabs((prev) => new Set(prev).add(activeTabId));
+
     // Update the tab content
-    setTabs(prevTabs => 
-      prevTabs.map(tab => 
-        tab.id === activeTabId 
-          ? { ...tab, content: value }
-          : tab
-      )
+    setTabs((prevTabs) =>
+      prevTabs.map((tab) =>
+        tab.id === activeTabId ? { ...tab, content: value } : tab,
+      ),
     );
   };
 
   const handleSaveFile = async () => {
     if (!activeTabId || !activeTab) return;
-    
+
     try {
       await fileService.saveFile(
         username,
         repoSlug,
         activeTab.path,
-        activeTab.content
+        activeTab.content,
       );
-      
+
       // Remove the tab from modified tabs after successful save
-      setModifiedTabs(prev => {
+      setModifiedTabs((prev) => {
         const newSet = new Set(prev);
+
         newSet.delete(activeTabId);
+
         return newSet;
       });
-      
+
       // Show success feedback (you could add a toast notification here)
       console.log("File saved successfully");
     } catch (error) {
@@ -295,14 +338,14 @@ export default function CodeEditor({
               </button>
             </button>
           ))}
-          
+
           {/* Save Button */}
           {modifiedTabs.size > 0 && (
             <div className="ml-auto px-4 py-2">
               <button
                 className="flex items-center px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors"
-                onClick={handleSaveFile}
                 title="Save file (Ctrl+S)"
+                onClick={handleSaveFile}
               >
                 <svg
                   className="w-4 h-4 mr-2"

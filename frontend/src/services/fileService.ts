@@ -6,7 +6,7 @@ export const fileService = {
   async listDirectory(
     username: string,
     repoSlug: string,
-    path: string = "",
+    path: string = ""
   ): Promise<DirectoryResponse> {
     const params = new URLSearchParams();
 
@@ -15,7 +15,7 @@ export const fileService = {
     }
 
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files?${params.toString()}`,
+      `${API_BASE}/repos/${username}/${repoSlug}/files?${params.toString()}`
     );
 
     if (!response.ok) {
@@ -28,12 +28,12 @@ export const fileService = {
   async getFileContent(
     username: string,
     repoSlug: string,
-    path: string,
+    path: string
   ): Promise<FileContentResponse> {
     const params = new URLSearchParams({ path });
 
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/content?${params.toString()}`,
+      `${API_BASE}/repos/${username}/${repoSlug}/files/content?${params.toString()}`
     );
 
     if (!response.ok) {
@@ -48,7 +48,7 @@ export const fileService = {
     repoSlug: string,
     path: string,
     content: string,
-    encoding: string = "utf-8",
+    encoding: string = "utf-8"
   ): Promise<{ message: string; encoding: string }> {
     const params = new URLSearchParams({ path });
 
@@ -60,7 +60,7 @@ export const fileService = {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content, encoding }),
-      },
+      }
     );
 
     if (!response.ok) {
@@ -72,10 +72,14 @@ export const fileService = {
 
   async getChangedFiles(
     username: string,
-    repoSlug: string,
-  ): Promise<{ changed_files: string[]; total_changed: number; last_check: string }> {
+    repoSlug: string
+  ): Promise<{
+    changed_files: string[];
+    total_changed: number;
+    last_check: string;
+  }> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/changed`,
+      `${API_BASE}/repos/${username}/${repoSlug}/files/changed`
     );
 
     if (!response.ok) {
@@ -88,7 +92,7 @@ export const fileService = {
   async commitAndPush(
     username: string,
     repoSlug: string,
-    commitMessage: string,
+    commitMessage: string
   ): Promise<{ message: string; commit_hash: string }> {
     const response = await fetch(
       `${API_BASE}/repos/${username}/${repoSlug}/git/commit`,
@@ -98,11 +102,106 @@ export const fileService = {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ message: commitMessage }),
-      },
+      }
     );
 
     if (!response.ok) {
       throw new Error(`Failed to commit and push: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async createFile(
+    username: string,
+    repoSlug: string,
+    filename: string,
+    content: string = "",
+    encoding: string = "utf-8"
+  ): Promise<{ path: string; message: string; encoding: string }> {
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/files/create`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ filename, content, encoding }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to create file: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async createDirectory(
+    username: string,
+    repoSlug: string,
+    dirname: string
+  ): Promise<{ path: string; message: string }> {
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/files/create-directory`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ dirname }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to create directory: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async deleteFile(
+    username: string,
+    repoSlug: string,
+    path: string
+  ): Promise<{ path: string; message: string }> {
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/files/delete`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ path }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete file: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async renameFile(
+    username: string,
+    repoSlug: string,
+    oldPath: string,
+    newName: string
+  ): Promise<{ old_path: string; new_path: string; message: string }> {
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/files/rename`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ old_path: oldPath, new_name: newName }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to rename file: ${response.statusText}`);
     }
 
     return response.json();
