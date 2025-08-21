@@ -192,6 +192,8 @@ async def update_docstring(
             raise HTTPException(status_code=400, detail="Path is not a file")
 
         updated = update_function_docstring(
+            username,
+            repo_slug,
             str(full_file_path),
             request.function_name,
             request.new_docstring,

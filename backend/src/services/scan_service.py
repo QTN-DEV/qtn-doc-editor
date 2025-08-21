@@ -1,6 +1,13 @@
 """Service for scanning files for definitions."""
 
 import logging
+import os
+import platform
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Literal
 from pydantic import BaseModel
 
@@ -470,116 +477,130 @@ def scan_for_functions(
 
 
 def update_function_docstring(
-    file_path: str, function_name: str, new_docstring: str
+    username: str,
+    repo_name: str,
+    file_path: str,
+    function_name: str,
+    new_docstring: str,
 ) -> bool:
     """
-    Updates the docstring of a specific function in a Python file.
+    Use LLM to adjust function content based on the provided docstring.
 
     Args:
         file_path: The absolute path to the Python file.
         function_name: The name of the function to update.
-        new_docstring: The new docstring content.
+        new_docstring: The new docstring content to guide the LLM.
 
     Returns:
-        True if the docstring was updated, False otherwise.
+        True if the function was updated successfully, False if killed due to timeout.
     """
-    logger.info(f"Attempting to update docstring for {function_name} in {file_path}")
+    logger.info(
+        f"Attempting to update function {function_name} in {file_path} using LLM"
+    )
+
+    if platform.system().lower() == "windows":
+        raise Exception("Windows is not supported")
+
     try:
-        with open(file_path, "r") as f:
-            lines = f.readlines()
+        # Get the repository folder (parent directory of the file)
+        current_repo_folder = Path(f"../repo/{username}/{repo_name}")
 
-        updated_lines = []
-        docstring_updated = False
-        skip_lines = 0
+        # Create instruction.txt with the task description
+        # Convert file_path to be relative to the repository root
+        repo_relative_path = Path(file_path).relative_to(current_repo_folder)
+        instruction_content = f"""Change {function_name} function on {repo_relative_path}:
+{new_docstring}
 
-        for i, line in enumerate(lines):
-            if skip_lines > 0:
-                skip_lines -= 1
-                continue
+Also set that as docstring"""
 
-            stripped_line = line.strip()
+        instruction_file = current_repo_folder / "instruction.txt"
+        with open(instruction_file, "w") as f:
+            f.write(instruction_content)
 
-            # Check for function definition
-            is_async = stripped_line.startswith("async def ")
-            if (
-                stripped_line.startswith("def ") or is_async
-            ) and function_name in stripped_line:
-                logger.debug(f"Found target function line: {stripped_line}")
-                updated_lines.append(line)  # Add the function definition line
+        # Generate a unique work ID based on function name and timestamp
+        work_id = f"{function_name}_{int(datetime.now().timestamp())}"
 
-                # Find indentation of the function
-                indentation = len(line) - len(line.lstrip())
-                docstring_indent = " " * (
-                    indentation + 4
-                )  # Standard 4 spaces for docstring
+        # Unix/Linux path format
+        run_script_content = f"""#!/bin/bash
+echo 'Starting goose run {work_id}'
+goose run -i instruction.txt -n {work_id}
+echo 'Goose run completed {work_id}'
+touch done.txt
+"""
+        run_script_path = current_repo_folder / "run.sh"
 
-                # Check for existing docstring
-                docstring_found = False
-                for j in range(i + 1, len(lines)):
-                    current_line = lines[j]
-                    current_stripped_line = current_line.strip()
-                    if current_stripped_line.startswith(
-                        '"""'
-                    ) or current_stripped_line.startswith("'''"):
-                        docstring_found = True
-                        logger.debug(f"Existing docstring found at line {j + 1}")
-                        # Replace existing docstring
-                        updated_lines.append(
-                            f'{docstring_indent}"""{new_docstring}"""\n'
-                        )
-                        # Skip old docstring lines
-                        if (
-                            current_stripped_line.count('"""') == 2
-                            or current_stripped_line.count("'''") == 2
-                        ):  # Single line docstring
-                            skip_lines = 1  # Single line docstring
-                        else:
-                            # Multi-line docstring, find its end
-                            for k in range(j + 1, len(lines)):
-                                skip_lines += 1
-                                if lines[k].strip().endswith('"""') or lines[
-                                    k
-                                ].strip().endswith("'''"):
-                                    skip_lines += 1
-                                    break
-                        docstring_updated = True
-                        break
-                    elif (
-                        current_stripped_line.startswith("def ")
-                        or current_stripped_line.startswith("class ")
-                        or not current_line.startswith(" ")
-                    ):
-                        # Next function/class or out of scope, no docstring found
-                        logger.debug(
-                            f"No docstring found for {function_name} before next code block."
-                        )
-                        break
-                    else:
-                        # Regular code line, not a docstring
-                        updated_lines.append(current_line)
+        # Direct execution on Unix/Linux
+        script_command = f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')} ./run.sh"
 
-                if not docstring_found:
-                    logger.debug(f"Inserting new docstring for {function_name}.")
-                    # Insert new docstring after function definition
-                    updated_lines.append(f'{docstring_indent}"""{new_docstring}"""\n')
-                    docstring_updated = True
+        with open(run_script_path, "w") as f:
+            f.write(run_script_content)
 
-                # No need for found_function = False here, as we break after finding the function
+        # Make it executable (only needed for Unix/Linux)
+        os.chmod(run_script_path, 0o755)
 
-            else:
-                updated_lines.append(line)
+        # Run script with timeout handling
+        process = subprocess.Popen(
+            script_command,
+            cwd=current_repo_folder,
+            shell=True,
+            stdin=subprocess.DEVNULL,  # Prevents EBADF from invalid stdin
+            stdout=sys.stdout,  # PM2 will log this
+            stderr=sys.stderr,
+        )
 
-        if docstring_updated:
-            logger.info(
-                f"Docstring for {function_name} updated. Writing changes to {file_path}."
-            )
-            with open(file_path, "w") as f:
-                f.writelines(updated_lines)
-            return True
-        logger.warning(f"Docstring for {function_name} not updated in {file_path}.")
-        return False
+        start_time = datetime.now(timezone.utc)
+        timeout_seconds = 600  # 10 minutes timeout
+
+        # Wait for done.txt to be created with timeout
+        done_file = current_repo_folder / "done.txt"
+        while not os.path.exists(done_file):
+            current_time = datetime.now(timezone.utc)
+            elapsed_time = (current_time - start_time).total_seconds()
+
+            if elapsed_time >= timeout_seconds:
+                logger.error(f"[{work_id}] TIMEOUT: Process exceeded 10 minutes limit")
+
+                # Kill the process
+                try:
+                    process.kill()
+                    process.wait(timeout=5)
+                except Exception as kill_error:
+                    logger.error(f"[{work_id}] Error killing process: {kill_error}")
+
+                # Clean up temporary files
+                try:
+                    if instruction_file.exists():
+                        instruction_file.unlink()
+                    if run_script_path.exists():
+                        run_script_path.unlink()
+                except Exception as cleanup_error:
+                    logger.error(
+                        f"[{work_id}] Error cleaning up files: {cleanup_error}"
+                    )
+
+                return False
+
+            # Small sleep to avoid busy waiting
+            time.sleep(1)
+
+        # Process completed successfully
+        logger.info(f"[{work_id}] LLM processing completed successfully")
+
+        # Clean up temporary files
+        try:
+            if instruction_file.exists():
+                instruction_file.unlink()
+            if run_script_path.exists():
+                run_script_path.unlink()
+            if done_file.exists():
+                done_file.unlink()
+        except Exception as cleanup_error:
+            logger.error(f"[{work_id}] Error cleaning up files: {cleanup_error}")
+
+        return True
+
     except Exception as e:
         logger.error(
-            f"Error during docstring update for {function_name} in {file_path}: {e}"
+            f"Error during LLM-based function update for {function_name} in {file_path}: {e}"
         )
         raise

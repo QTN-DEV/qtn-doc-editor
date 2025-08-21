@@ -2,6 +2,8 @@
 
 Create a FastAPI application with repository initialization endpoint and CORS enabled.
 """
+from dotenv import load_dotenv
+load_dotenv()
 
 import logging
 from fastapi import FastAPI
