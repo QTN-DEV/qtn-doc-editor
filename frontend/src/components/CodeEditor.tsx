@@ -53,7 +53,9 @@ export default function CodeEditor({
 
     // Listener function for file rename
     const handleRenameEvent: EventListener = (event: Event) => {
-      const detail = (event as CustomEvent<{ oldPath: string; newPath: string }>).detail;
+      const detail = (
+        event as CustomEvent<{ oldPath: string; newPath: string }>
+      ).detail;
 
       setTabs((prevTabs) =>
         prevTabs.map((tab) =>
@@ -63,8 +65,8 @@ export default function CodeEditor({
                 path: detail.newPath,
                 name: detail.newPath.split("/").pop() || "",
               }
-            : tab
-        )
+            : tab,
+        ),
       );
     };
 
@@ -230,9 +232,7 @@ export default function CodeEditor({
       });
 
       // Show success feedback (you could add a toast notification here)
-      console.log("File saved successfully");
-    } catch (error) {
-      console.error("Failed to save file:", error);
+    } catch {
       // You could add error handling/notification here
     }
   };

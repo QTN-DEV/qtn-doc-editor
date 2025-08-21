@@ -27,8 +27,7 @@ export default function DeleteConfirmModal({
         new CustomEvent("file-deleted", { detail: itemPath }),
       );
       onClose();
-    } catch (err) {
-      console.error("Failed to delete:", err);
+    } catch {
       // You could add a toast notification here
     } finally {
       setIsDeleting(false);

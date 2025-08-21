@@ -820,7 +820,6 @@ async def commit_and_push(
             )
 
         import subprocess
-        import time
 
         try:
             # Stage all changes

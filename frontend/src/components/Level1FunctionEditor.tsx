@@ -12,6 +12,7 @@ interface CodeEditorProps {
   filePath: string | null;
   onFileSelect: (filePath: string) => void;
   onActiveFileChange: (filePath: string | null) => void;
+  isEditorActive: boolean;
 }
 
 export default function CodeEditor({
@@ -19,6 +20,7 @@ export default function CodeEditor({
   repoSlug,
   filePath,
   onActiveFileChange,
+  isEditorActive,
 }: CodeEditorProps) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -232,9 +234,7 @@ export default function CodeEditor({
       });
 
       // Show success feedback (you could add a toast notification here)
-      console.log("File saved successfully");
-    } catch (error) {
-      console.error("Failed to save file:", error);
+    } catch {
       // You could add error handling/notification here
     }
   };
@@ -378,7 +378,7 @@ export default function CodeEditor({
             dropCursor: false,
             indentOnInput: false,
           }}
-          editable={true}
+          editable={isEditorActive}
           extensions={[python()]}
           theme={oneDark}
           value={activeTab?.content || ""}

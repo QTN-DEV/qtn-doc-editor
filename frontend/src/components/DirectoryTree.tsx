@@ -167,14 +167,15 @@ export default function DirectoryTree({
         // Always load folder contents to ensure they're up-to-date
         // This handles cases where the folder was previously expanded and collapsed
         await loadDirectory(item.path);
-      } catch (error) {
+      } catch {
         // If loading fails, remove from expanded folders
         setExpandedFolders((prev) => {
           const newSet = new Set(prev);
+
           newSet.delete(item.path);
+
           return newSet;
         });
-        console.error("Failed to load directory:", item.path, error);
       }
     }
   };

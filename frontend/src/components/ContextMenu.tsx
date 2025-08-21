@@ -122,7 +122,9 @@ export default function ContextMenu({
         </button>
       )}
 
-      {(showRename || showDelete) && <div className="border-t border-gray-200 my-1" />}
+      {(showRename || showDelete) && (
+        <div className="border-t border-gray-200 my-1" />
+      )}
 
       {showRename && (
         <button

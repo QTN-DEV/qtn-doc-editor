@@ -1,7 +1,8 @@
 import { useState } from "react";
-import axios from "axios";
-import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+
+import { fileService } from "@/services/fileService";
 
 export default function IndexPage() {
   const [pat, setPat] = useState("");
@@ -35,54 +36,38 @@ export default function IndexPage() {
 
     setIsLoading(true);
 
-    try {
-      // Show loading progress
-      Swal.fire({
-        title: "Initializing Repository",
-        html: `
+    // Show loading progress
+    Swal.fire({
+      title: "Initializing Repository",
+      html: `
           <div class="mb-4">Cloning repository...</div>
           <div class="w-full bg-gray-200 rounded-full h-2.5">
             <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 100%"></div>
           </div>
         `,
-        allowOutsideClick: false,
-        showConfirmButton: false,
-      });
+      allowOutsideClick: false,
+      showConfirmButton: false,
+    });
 
-      const response = await axios.post("http://localhost:8000/api/v1/init", {
-        pat: pat.trim(),
-        github_repo: githubRepo.trim(),
-      });
+    try {
+      const [username, repoSlug] = githubRepo.split("/");
+      const response = await fileService.initRepo(username, repoSlug);
 
-      if (response.data.status === "success") {
+      if (response.status === "success") {
+        navigate(response.redirect_url);
+      } else {
         Swal.fire({
-          icon: "success",
-          title: "Success!",
-          text: response.data.message,
-          timer: 2000,
-          showConfirmButton: false,
+          icon: "error",
+          title: "Initialization Failed",
+          text: response.error || "An unexpected error occurred.",
         });
-
-        // Navigate to the repository page
-        const [username, repoSlug] = githubRepo.split("/");
-
-        navigate(`/0/${username}/${repoSlug}`);
       }
-    } catch (error: any) {
-      console.error("Error:", error);
-
-      let errorMessage = "An unexpected error occurred";
-
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
+    } catch (err) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: errorMessage,
+        text:
+          err instanceof Error ? err.message : "An unexpected error occurred.",
       });
     } finally {
       setIsLoading(false);

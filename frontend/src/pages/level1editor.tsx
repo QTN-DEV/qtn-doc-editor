@@ -2,21 +2,19 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import DirectoryTree from "@/components/DirectoryTree";
+import FunctionList from "@/components/FunctionList";
 import GitTab from "@/components/GitTab";
-import Level1FunctionEditor from "@/components/Level1FunctionEditor";
 
 export default function Level1EditorPage() {
-  const { username, repoSlug } = useParams();
+  const { username, repoSlug } = useParams<{
+    username: string;
+    repoSlug: string;
+  }>();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [activeFile, setActiveFile] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"folders" | "git">("folders");
 
   const handleFileSelect = (filePath: string) => {
     setSelectedFile(filePath);
-  };
-
-  const handleActiveFileChange = (filePath: string | null) => {
-    setActiveFile(filePath);
   };
 
   return (
@@ -26,7 +24,7 @@ export default function Level1EditorPage() {
         <div className="grid grid-cols-4 gap-0 h-full bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Left Panel - Directory Tree with Tabs */}
           <aside className="col-span-1 border-r border-gray-200 bg-white">
-            {/* Level 0 Editor Title */}
+            {/* Level 1 Editor Title */}
             <div className="px-4 py-3 bg-blue-50 border-b border-blue-200">
               <h2 className="text-sm font-semibold text-blue-900">
                 Level 1 Editor
@@ -68,7 +66,7 @@ export default function Level1EditorPage() {
                 }`}
               >
                 <DirectoryTree
-                  activeFile={activeFile}
+                  activeFile={selectedFile}
                   filter={["*.py"]}
                   repoSlug={repoSlug!}
                   username={username!}
@@ -91,15 +89,21 @@ export default function Level1EditorPage() {
             </div>
           </aside>
 
-          {/* Right Panel - Code Editor */}
+          {/* Right Panel - Function List */}
           <main className="col-span-3 bg-white overflow-auto">
-            <Level1FunctionEditor
-              filePath={selectedFile}
-              repoSlug={repoSlug!}
-              username={username!}
-              onActiveFileChange={handleActiveFileChange}
-              onFileSelect={handleFileSelect}
-            />
+            {selectedFile ? (
+              <FunctionList
+                filePath={selectedFile}
+                repoSlug={repoSlug!}
+                username={username!}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-gray-500">
+                  Select a file to view its functions
+                </p>
+              </div>
+            )}
           </main>
         </div>
       </div>
