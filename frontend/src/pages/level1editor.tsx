@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 
-import DirectoryTree from "@/components/DirectoryTree";
-import FunctionList from "@/components/FunctionList";
+import FunctionNavigation from "@/components/FunctionNavigation";
+import FullFunctionList from "@/components/FullFunctionList";
 import GitTab from "@/components/GitTab";
 
 export default function Level1EditorPage() {
@@ -10,20 +10,22 @@ export default function Level1EditorPage() {
     username: string;
     repoSlug: string;
   }>();
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"folders" | "git">("folders");
+  const [activeTab, setActiveTab] = useState<"functions" | "git">("functions");
+  const fullFunctionListRef = useRef<{ scrollToFunction: (key: string) => void }>(null);
 
-  const handleFileSelect = (filePath: string) => {
-    setSelectedFile(filePath);
+  const handleFunctionSelect = (functionKey: string) => {
+    if (fullFunctionListRef.current) {
+      fullFunctionListRef.current.scrollToFunction(functionKey);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main Content */}
-      <div className="h-screen">
-        <div className="grid grid-cols-4 gap-0 h-full bg-white border border-gray-200 rounded-lg overflow-hidden">
-          {/* Left Panel - Directory Tree with Tabs */}
-          <aside className="col-span-1 border-r border-gray-200 bg-white">
+      <div className="h-screen relative">
+        <div className="ml-[350px] flex">
+          {/* Left Panel - Function Navigation with Tabs */}
+          <aside className="fixed left-0 top-0 bottom-0 w-[350px] border-r border-gray-200 bg-white flex flex-col">
             {/* Level 1 Editor Title */}
             <div className="px-4 py-3 bg-blue-50 border-b border-blue-200">
               <h2 className="text-sm font-semibold text-blue-900">
@@ -35,21 +37,19 @@ export default function Level1EditorPage() {
             <div className="bg-gray-100 border-b border-gray-200">
               <div className="flex">
                 <button
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === "folders"
-                      ? "bg-white text-gray-900 border-b-2 border-blue-500"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setActiveTab("folders")}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === "functions"
+                    ? "bg-white text-gray-900 border-b-2 border-blue-500"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    }`}
+                  onClick={() => setActiveTab("functions")}
                 >
-                  Folders
+                  Functions
                 </button>
                 <button
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === "git"
-                      ? "bg-white text-gray-900 border-b-2 border-blue-500"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                  }`}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === "git"
+                    ? "bg-white text-gray-900 border-b-2 border-blue-500"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    }`}
                   onClick={() => setActiveTab("git")}
                 >
                   Git
@@ -57,53 +57,42 @@ export default function Level1EditorPage() {
               </div>
             </div>
 
-            {/* Tab Content */}
-            <div className="relative h-full">
-              {/* Folders Tab */}
+            {/* Tab Content - Scrollable */}
+            <div className="flex-1 overflow-hidden">
+              {/* Functions Tab */}
               <div
-                className={`absolute inset-0 transition-opacity duration-200 ${
-                  activeTab === "folders" ? "opacity-100 z-10" : "opacity-0 z-0"
-                }`}
+                className={`inset-0 transition-opacity duration-200 overflow-auto ${activeTab === "functions" ? "opacity-100 z-10" : "opacity-0 z-0"
+                  }`}
               >
-                <DirectoryTree
-                  activeFile={selectedFile}
-                  filter={["*.py"]}
+                <FunctionNavigation
                   repoSlug={repoSlug!}
                   username={username!}
-                  onFileSelect={handleFileSelect}
+                  onFunctionSelect={handleFunctionSelect}
                 />
               </div>
 
               {/* Git Tab */}
-              <div
-                className={`absolute inset-0 transition-opacity duration-200 bg-white ${
-                  activeTab === "git" ? "opacity-100 z-10" : "opacity-0 z-0"
-                }`}
-              >
-                <GitTab
-                  repoSlug={repoSlug!}
-                  username={username!}
-                  onFileSelect={handleFileSelect}
-                />
-              </div>
+              {activeTab === "git" && (
+                <div
+                  className={`inset-0 transition-opacity duration-200 bg-white overflow-auto z-10`}
+                >
+                  <GitTab
+                    repoSlug={repoSlug!}
+                    username={username!}
+                    onFileSelect={() => { }}
+                  />
+                </div>
+              )}
             </div>
           </aside>
 
-          {/* Right Panel - Function List */}
-          <main className="col-span-3 bg-white overflow-auto">
-            {selectedFile ? (
-              <FunctionList
-                filePath={selectedFile}
-                repoSlug={repoSlug!}
-                username={username!}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500">
-                  Select a file to view its functions
-                </p>
-              </div>
-            )}
+          {/* Right Panel - Full Function List (Scrollable) */}
+          <main className="bg-white flex flex-col w-full">
+            <FullFunctionList
+              ref={fullFunctionListRef}
+              repoSlug={repoSlug!}
+              username={username!}
+            />
           </main>
         </div>
       </div>

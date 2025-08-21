@@ -6,6 +6,7 @@ from typing import List, Dict # Added Dict
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from src.services.scan_service import scan_for_functions, update_function_docstring
+import os
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -19,11 +20,21 @@ class FunctionInfo(BaseModel):
     output_schema: str # Updated to match scan_service
     docs: str | None
 
+class FullScanFunctionInfo(FunctionInfo):
+    """Function information model for full repository scan."""
+
+    file_path: str
+
 class ScanResponse(BaseModel):
     """Scan response model."""
 
     path: str
     functions: List[FunctionInfo]
+
+class FullScanResponse(BaseModel):
+    """Full scan response model."""
+    
+    functions: List[FullScanFunctionInfo]
 
 class UpdateDocstringRequest(BaseModel):
     """Update docstring request model."""
@@ -75,6 +86,59 @@ async def get_functions(
     except Exception as e:
         logger.exception(f"Error scanning file {path}: {e}")
         raise HTTPException(status_code=500, detail=f"Error scanning file: {str(e)}")
+
+@router.get("/repos/{username}/{repo_slug}/scan/full", response_model=FullScanResponse)
+async def get_full_scan(
+    username: str,
+    repo_slug: str,
+):
+    """Scan entire repository for all functions."""
+    logger.info(f"Received request to scan entire repository: {username}/{repo_slug}")
+    try:
+        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        
+        if not repo_path.exists():
+            logger.error(f"Repository not found: {repo_path}")
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        all_functions = []
+        
+        # Walk through all .py files in the repository
+        for root, dirs, files in os.walk(repo_path):
+            # Skip hidden directories
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            
+            for file in files:
+                if file.endswith('.py'):
+                    file_path = Path(root) / file
+                    relative_path = str(file_path.relative_to(repo_path))
+                    
+                    try:
+                        functions = scan_for_functions(str(file_path))
+                        # Add file path to each function for reference
+                        for func in functions:
+                            func_with_file = FullScanFunctionInfo(
+                                file_path=relative_path,
+                                className=func["className"],
+                                function_name=func["function_name"],
+                                input_schema=func["input_schema"],
+                                output_schema=func["output_schema"],
+                                docs=func["docs"]
+                            )
+                            all_functions.append(func_with_file)
+                        logger.info(f"Scanned {len(functions)} functions from {relative_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to scan {relative_path}: {e}")
+                        continue
+
+        logger.info(f"Successfully scanned entire repository. Found {len(all_functions)} functions.")
+        return FullScanResponse(functions=all_functions)
+
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.exception(f"Error scanning repository {username}/{repo_slug}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error scanning repository: {str(e)}")
 
 @router.put("/repos/{username}/{repo_slug}/scan/functions/docstring", response_model=UpdateDocstringResponse)
 async def update_docstring(

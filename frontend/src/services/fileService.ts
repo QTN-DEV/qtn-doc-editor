@@ -229,6 +229,21 @@ export const fileService = {
     return response.json();
   },
 
+  async scanFullRepository(
+    username: string,
+    repoSlug: string,
+  ): Promise<{ functions: any[] }> {
+    const response = await fetch(
+      `${API_BASE}/repos/${username}/${repoSlug}/scan/full`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to scan repository: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
   async updateFunctionDocstring(
     username: string,
     repoSlug: string,

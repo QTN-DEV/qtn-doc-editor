@@ -1,0 +1,319 @@
+import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
+
+import { fileService } from "@/services/fileService";
+import { FunctionInfo } from "@/types/functions";
+
+interface FullFunctionListProps {
+  username: string;
+  repoSlug: string;
+}
+
+// Helper to make function names human-readable
+const toHumanReadable = (name: string): string => {
+  return name
+    .replace(/_/g, " ") // Replace underscores with spaces
+    .replace(/\b\w/g, (char) => char.toUpperCase()); // Capitalize first letter of each word
+};
+
+export interface FullFunctionListRef {
+  scrollToFunction: (key: string) => void;
+}
+
+const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(({
+  username,
+  repoSlug,
+}, ref) => {
+  const [functions, setFunctions] = useState<FunctionInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editedDocstrings, setEditedDocstrings] = useState<{
+    [key: string]: string; // key is file_path:function_name
+  }>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [expandedFunctions, setExpandedFunctions] = useState<Set<string>>(
+    new Set(),
+  );
+  const functionRefs = useRef<Record<string, HTMLLIElement | null>>({});
+
+  useImperativeHandle(ref, () => ({
+    scrollToFunction: (key: string) => {
+      const element = functionRefs.current[key];
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Add a temporary highlight effect
+        element.classList.add("bg-yellow-100");
+        setTimeout(() => {
+          element.classList.remove("bg-yellow-100");
+        }, 2000);
+      }
+    }
+  }));
+
+  useEffect(() => {
+    const fetchFullScan = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fileService.scanFullRepository(
+          username,
+          repoSlug,
+        );
+
+        setFunctions(response.functions);
+
+        // Initialize all functions as expanded
+        const allExpanded = new Set<string>();
+        response.functions.forEach((func) => {
+          allExpanded.add(`${func.file_path}:${func.function_name}`);
+        });
+        setExpandedFunctions(allExpanded);
+
+        // Initialize editedDocstrings with current docstrings
+        const initialEditedDocs: { [key: string]: string } = {};
+        response.functions.forEach((func) => {
+          const key = `${func.file_path}:${func.function_name}`;
+          initialEditedDocs[key] = func.docs || "";
+        });
+        setEditedDocstrings(initialEditedDocs);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to load functions",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFullScan();
+  }, [username, repoSlug]);
+
+  const handleDocstringChange = (key: string, value: string) => {
+    setEditedDocstrings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleSaveDocstring = async (func: FunctionInfo) => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const key = `${func.file_path}:${func.function_name}`;
+
+      await fileService.updateFunctionDocstring(
+        username,
+        repoSlug,
+        func.file_path,
+        func.function_name,
+        editedDocstrings[key],
+      );
+
+      // Update local state after successful save
+      const updatedFunctions = functions.map((f) => {
+        if (f.file_path === func.file_path && f.function_name === func.function_name) {
+          return { ...f, docs: editedDocstrings[key] };
+        }
+        return f;
+      });
+
+      setFunctions(updatedFunctions);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save docstring");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleFunctionExpansion = (key: string) => {
+    setExpandedFunctions((prev) => {
+      const newSet = new Set(prev);
+
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+
+      return newSet;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+          <div className="h-4 bg-gray-200 rounded w-1/2 mb-2" />
+          <div className="h-4 bg-gray-200 rounded w-2/3" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="text-red-600 text-sm">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 bg-gray-50">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">
+        All Functions in Repository <span className="text-blue-600">{repoSlug}</span>
+      </h2>
+      {functions.length === 0 ? (
+        <p className="text-gray-600">No functions found in this repository.</p>
+      ) : (
+        <ul className="space-y-4">
+          {functions.map((func) => {
+            const key = `${func.file_path}:${func.function_name}`;
+            const isExpanded = expandedFunctions.has(key);
+
+            return (
+              <li
+                key={key}
+                ref={(el) => (functionRefs.current[key] = el)}
+                className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden transition-colors duration-200"
+              >
+                <button
+                  className="w-full flex items-center justify-between p-4 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                  onClick={() => toggleFunctionExpansion(key)}
+                >
+                  <div className="flex items-center">
+                    {func.className ? (
+                      <svg
+                        className="h-6 w-6 text-purple-500 mr-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2H8m2-6v6m4-2v2m-4-2h4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="h-6 w-6 text-green-500 mr-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M10 20l4-16m4 4l4 4-4 4M6 16L2 12l4-4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
+                      </svg>
+                    )}
+                    <div className="text-left">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {func.className && (
+                          <span className="text-gray-500 font-normal">
+                            {toHumanReadable(func.className)}.
+                          </span>
+                        )}
+                        {toHumanReadable(func.function_name)}
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">{func.file_path}</p>
+                    </div>
+                  </div>
+                  <svg
+                    className={`h-5 w-5 text-gray-500 transform transition-transform ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M9 5l7 7-7 7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
+                  </svg>
+                </button>
+
+                {isExpanded && (
+                  <div className="p-4 border-t border-gray-200">
+                    <div className="ml-8 text-sm text-gray-700">
+                      <div className="mb-3">
+                        <strong className="text-gray-800">Input Schema:</strong>{" "}
+                        {Object.keys(func.input_schema).length > 0 ? (
+                          <ul className="list-disc list-inside ml-4 mt-1">
+                            {Object.entries(func.input_schema).map(
+                              ([paramName, paramType]) => (
+                                <li key={paramName}>
+                                  {paramName}:{" "}
+                                  <span className="font-mono text-blue-600">
+                                    {paramType}
+                                  </span>
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                        ) : (
+                          <span className="ml-2">None</span>
+                        )}
+                      </div>
+
+                      {func.output_schema && (
+                        <div className="mb-3">
+                          <strong className="text-gray-800">
+                            Output Schema:
+                          </strong>{" "}
+                          <span className="font-mono text-blue-600">
+                            {func.output_schema}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="mt-3">
+                        <label
+                          className="block text-gray-800 font-medium mb-2"
+                          htmlFor={`docstring-${key}`}
+                        >
+                          Docstring:
+                        </label>
+                        <textarea
+                          className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={isSaving}
+                          id={`docstring-${key}`}
+                          rows={5}
+                          value={editedDocstrings[key]}
+                          onChange={(e) =>
+                            handleDocstringChange(key, e.target.value)
+                          }
+                        />
+                        <div className="mt-2 space-x-2">
+                          <button
+                            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                            disabled={isSaving}
+                            onClick={() => handleSaveDocstring(func)}
+                          >
+                            {isSaving ? "Saving..." : "Save"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+});
+
+export default FullFunctionList;
