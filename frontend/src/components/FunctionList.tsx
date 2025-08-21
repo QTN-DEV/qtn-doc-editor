@@ -6,7 +6,7 @@ interface FunctionInfo {
   className: string | null;
   function_name: string;
   input_schema: { [key: string]: string }; // Changed to object for schema
-  output_schema: string; // Changed to string for schema
+  output_schema: string[]; // Changed to string for schema
   docs: string | null;
 }
 
@@ -59,7 +59,7 @@ export default function FunctionList({
           allExpanded.add(index);
         });
         setExpandedFunctions(allExpanded);
-        
+
         // Initialize editedDocstrings with current docstrings
         const initialEditedDocs: { [key: number]: string } = {};
 
@@ -207,9 +207,8 @@ export default function FunctionList({
                     </h3>
                   </div>
                   <svg
-                    className={`h-5 w-5 text-gray-500 transform transition-transform ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
+                    className={`h-5 w-5 text-gray-500 transform transition-transform ${isExpanded ? "rotate-90" : ""
+                      }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

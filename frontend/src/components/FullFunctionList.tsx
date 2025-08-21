@@ -30,10 +30,7 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
     [key: string]: string; // key is file_path:function_name
   }>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [expandedFunctions, setExpandedFunctions] = useState<Set<string>>(
-    new Set(),
-  );
-  const functionRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const functionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useImperativeHandle(ref, () => ({
     scrollToFunction: (key: string) => {
@@ -60,13 +57,6 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
         );
 
         setFunctions(response.functions);
-
-        // Initialize all functions as expanded
-        const allExpanded = new Set<string>();
-        response.functions.forEach((func) => {
-          allExpanded.add(`${func.file_path}:${func.function_name}`);
-        });
-        setExpandedFunctions(allExpanded);
 
         // Initialize editedDocstrings with current docstrings
         const initialEditedDocs: { [key: string]: string } = {};
@@ -124,20 +114,6 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
     }
   };
 
-  const toggleFunctionExpansion = (key: string) => {
-    setExpandedFunctions((prev) => {
-      const newSet = new Set(prev);
-
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
-
-      return newSet;
-    });
-  };
-
   if (loading) {
     return (
       <div className="p-4">
@@ -159,158 +135,106 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
   }
 
   return (
-    <div className="p-4 bg-gray-50">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">
-        All Functions in Repository <span className="text-blue-600">{repoSlug}</span>
-      </h2>
+    <div className="w-full">
       {functions.length === 0 ? (
-        <p className="text-gray-600">No functions found in this repository.</p>
+        <div className="p-6 text-center">
+          <p className="text-gray-600">No functions found in this repository.</p>
+        </div>
       ) : (
-        <ul className="space-y-4">
+        <div className="divide-y divide-gray-200">
           {functions.map((func) => {
             const key = `${func.file_path}:${func.function_name}`;
-            const isExpanded = expandedFunctions.has(key);
 
             return (
-              <li
+              <div
                 key={key}
                 ref={(el) => (functionRefs.current[key] = el)}
-                className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden transition-colors duration-200"
+                className="py-6 px-6 hover:bg-gray-50 transition-colors duration-200"
               >
-                <button
-                  className="w-full flex items-center justify-between p-4 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
-                  onClick={() => toggleFunctionExpansion(key)}
-                >
-                  <div className="flex items-center">
-                    {func.className ? (
-                      <svg
-                        className="h-6 w-6 text-purple-500 mr-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2H8m2-6v6m4-2v2m-4-2h4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="h-6 w-6 text-green-500 mr-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M10 20l4-16m4 4l4 4-4 4M6 16L2 12l4-4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                    )}
-                    <div className="text-left">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {func.className && (
-                          <span className="text-gray-500 font-normal">
-                            {toHumanReadable(func.className)}.
-                          </span>
-                        )}
-                        {toHumanReadable(func.function_name)}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">{func.file_path}</p>
-                    </div>
-                  </div>
-                  <svg
-                    className={`h-5 w-5 text-gray-500 transform transition-transform ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M9 5l7 7-7 7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                </button>
-
-                {isExpanded && (
-                  <div className="p-4 border-t border-gray-200">
-                    <div className="ml-8 text-sm text-gray-700">
-                      <div className="mb-3">
-                        <strong className="text-gray-800">Input Schema:</strong>{" "}
-                        {Object.keys(func.input_schema).length > 0 ? (
-                          <ul className="list-disc list-inside ml-4 mt-1">
-                            {Object.entries(func.input_schema).map(
-                              ([paramName, paramType]) => (
-                                <li key={paramName}>
-                                  {paramName}:{" "}
-                                  <span className="font-mono text-blue-600">
-                                    {paramType}
-                                  </span>
-                                </li>
-                              ),
-                            )}
-                          </ul>
-                        ) : (
-                          <span className="ml-2">None</span>
-                        )}
-                      </div>
-
-                      {func.output_schema && (
-                        <div className="mb-3">
-                          <strong className="text-gray-800">
-                            Output Schema:
-                          </strong>{" "}
-                          <span className="font-mono text-blue-600">
-                            {func.output_schema}
-                          </span>
-                        </div>
+                <div className="flex items-center mb-4">
+                  <div className="flex-1 flex items-center justify-between gap-2">
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {func.className && (
+                        <span className="text-gray-500 font-normal">
+                          {toHumanReadable(func.className)}.
+                        </span>
                       )}
+                      {toHumanReadable(func.function_name)}
+                    </h3>
+                    <p className="text-sm text-gray-500">{func.file_path}</p>
+                  </div>
+                </div>
 
-                      <div className="mt-3">
-                        <label
-                          className="block text-gray-800 font-medium mb-2"
-                          htmlFor={`docstring-${key}`}
-                        >
-                          Docstring:
-                        </label>
-                        <textarea
-                          className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          disabled={isSaving}
-                          id={`docstring-${key}`}
-                          rows={5}
-                          value={editedDocstrings[key]}
-                          onChange={(e) =>
-                            handleDocstringChange(key, e.target.value)
-                          }
-                        />
-                        <div className="mt-2 space-x-2">
-                          <button
-                            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                            disabled={isSaving}
-                            onClick={() => handleSaveDocstring(func)}
-                          >
-                            {isSaving ? "Saving..." : "Save"}
-                          </button>
-                        </div>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Input Schema</h4>
+                    {Object.keys(func.input_schema).length > 0 ? (
+                      <ul className="space-y-1 ml-4">
+                        {Object.entries(func.input_schema).map(
+                          ([paramName, paramDef]) => (
+                            <li key={paramName} className="flex items-center text-sm gap-2">
+                              <span className="text-gray-700">{paramName}<span className="text-red-500">{paramDef.required ? "*" : ""}</span></span>
+                              <span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs">
+                                {paramDef.type}
+                              </span>
+                              <span className="text-gray-500 text-xs">
+                                {paramDef.default ? `Default: ${paramDef.default}` : ""}
+                              </span>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    ) : (
+                      <span className="text-sm text-gray-500">None</span>
+                    )}
+                  </div>
+
+                  {func.output_schema && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-800 mb-2">Output Schema</h4>
+                      <div className="flex flex gap-2 ml-4">
+                        {func.output_schema.map((output) => (
+                          <span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs">
+                            {output}
+                          </span>
+                        ))}
                       </div>
                     </div>
+                  )}
+
+                  <div>
+                    <label
+                      className="block text-sm font-semibold text-gray-800 mb-2"
+                      htmlFor={`docstring-${key}`}
+                    >
+                      Docstring:
+                    </label>
+                    <textarea
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                      disabled={isSaving}
+                      id={`docstring-${key}`}
+                      placeholder="Add a description for this function..."
+                      rows={4}
+                      value={editedDocstrings[key]}
+                      onChange={(e) =>
+                        handleDocstringChange(key, e.target.value)
+                      }
+                    />
+                    <div className="mt-3">
+                      <button
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                        disabled={isSaving}
+                        onClick={() => handleSaveDocstring(func)}
+                      >
+                        {isSaving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
                   </div>
-                )}
-              </li>
+                </div>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );

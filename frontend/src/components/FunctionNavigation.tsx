@@ -81,10 +81,6 @@ export default function FunctionNavigation({
 
   return (
     <div className="p-4 h-full">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">
-        Functions in Repository
-      </h2>
-      
       {Object.keys(groupedFunctions).length === 0 ? (
         <p className="text-gray-500 text-sm">No functions found</p>
       ) : (
