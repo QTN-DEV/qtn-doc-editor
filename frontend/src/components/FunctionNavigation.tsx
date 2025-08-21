@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { fileService } from "@/services/fileService";
-import { FunctionInfo } from "@/types/functions";
+import { FunctionDefinition, FileScanResponse } from "@/types/functions";
 
 interface FunctionNavigationProps {
   username: string;
@@ -15,15 +15,22 @@ const toHumanReadable = (name: string): string => {
     .replace(/\b\w/g, (char) => char.toUpperCase()); // Capitalize first letter of each word
 };
 
+interface FunctionWithMeta {
+  name: string;
+  file_path: string;
+  className: string | null;
+  docstring: string | null;
+}
+
 export default function FunctionNavigation({
   username,
   repoSlug,
   onFunctionSelect,
 }: FunctionNavigationProps) {
-  const [functions, setFunctions] = useState<FunctionInfo[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [groupedFunctions, setGroupedFunctions] = useState<Record<string, FunctionInfo[]>>({});
+  const [groupedFunctions, setGroupedFunctions] = useState<Record<string, FunctionWithMeta[]>>({});
 
   useEffect(() => {
     const fetchFullScan = async () => {
@@ -35,15 +42,39 @@ export default function FunctionNavigation({
           repoSlug,
         );
 
-        setFunctions(response.functions);
+
 
         // Group functions by file path
-        const grouped: Record<string, FunctionInfo[]> = {};
-        response.functions.forEach((func) => {
-          if (!grouped[func.file_path]) {
-            grouped[func.file_path] = [];
+        const grouped: Record<string, FunctionWithMeta[]> = {};
+        
+        response.files.forEach((fileScan: FileScanResponse) => {
+          const functionsInFile: FunctionWithMeta[] = [];
+          
+          // Add standalone functions
+          fileScan.functions.forEach((func: FunctionDefinition) => {
+            functionsInFile.push({
+              name: func.name,
+              file_path: fileScan.file_path,
+              className: null,
+              docstring: func.docstring,
+            });
+          });
+          
+          // Add class methods
+          fileScan.classes.forEach((cls) => {
+            cls.functions.forEach((func: FunctionDefinition) => {
+              functionsInFile.push({
+                name: func.name,
+                file_path: fileScan.file_path,
+                className: cls.name,
+                docstring: func.docstring,
+              });
+            });
+          });
+          
+          if (functionsInFile.length > 0) {
+            grouped[fileScan.file_path] = functionsInFile;
           }
-          grouped[func.file_path].push(func);
         });
 
         setGroupedFunctions(grouped);
@@ -88,7 +119,7 @@ export default function FunctionNavigation({
           {Object.entries(groupedFunctions).map(([filePath, fileFunctions]) => (
             <>
               {fileFunctions.map((func) => {
-                const key = `${func.file_path}:${func.function_name}`;
+                const key = `${func.file_path}:${func.name}`;
                 return (
                   <button
                     key={key}
@@ -138,7 +169,7 @@ export default function FunctionNavigation({
                             {toHumanReadable(func.className)}.
                           </span>
                         )}
-                        {toHumanReadable(func.function_name)}
+                        {toHumanReadable(func.name)}
                       </span>
                     </div>
                   </button>

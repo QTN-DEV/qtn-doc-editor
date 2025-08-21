@@ -2,10 +2,15 @@
 
 import logging
 from pathlib import Path
-from typing import Any, List, Dict  # Added Dict
-from fastapi import APIRouter, HTTPException, Query
+from typing import Any, List
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from src.services.scan_service import scan_for_functions, update_function_docstring
+from src.services.scan_service import (
+    ClassDefinition,
+    FunctionDefinition,
+    scan_for_functions,
+    update_function_docstring,
+)
 import os
 
 router = APIRouter()
@@ -53,33 +58,18 @@ class InputSchema(BaseModel):
     default: Any = None
 
 
-class FunctionInfo(BaseModel):
-    """Function information model."""
-
-    className: str | None
-    function_name: str
-    input_schema: Dict[str, InputSchema]  # Updated to match scan_service
-    output_schema: List[str]
-    docs: str | None
-
-
-class FullScanFunctionInfo(FunctionInfo):
-    """Function information model for full repository scan."""
+class FileScanResponse(BaseModel):
+    """File scan response model."""
 
     file_path: str
-
-
-class ScanResponse(BaseModel):
-    """Scan response model."""
-
-    path: str
-    functions: List[FunctionInfo]
+    functions: List[FunctionDefinition]
+    classes: List[ClassDefinition]
 
 
 class FullScanResponse(BaseModel):
     """Full scan response model."""
 
-    functions: List[FullScanFunctionInfo]
+    files: List[FileScanResponse]
 
 
 class UpdateDocstringRequest(BaseModel):
@@ -97,52 +87,11 @@ class UpdateDocstringResponse(BaseModel):
     status: str
 
 
-@router.get("/repos/{username}/{repo_slug}/scan/functions", response_model=ScanResponse)
-async def get_functions(
-    username: str,
-    repo_slug: str,
-    path: str = Query(description="File path relative to repository root"),
-):
-    """Scan a file for functions."""
-    logger.info(
-        f"Received request to scan functions for repo: {username}/{repo_slug}, path: {path}"
-    )
-    try:
-        if not path:
-            logger.warning("File path is required for get_functions.")
-            raise HTTPException(status_code=400, detail="File path is required")
-
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
-        file_path = repo_path / path
-
-        if not repo_path.exists():
-            logger.error(f"Repository not found: {repo_path}")
-            raise HTTPException(status_code=404, detail="Repository not found")
-
-        if not file_path.exists():
-            logger.error(f"File not found: {file_path}")
-            raise HTTPException(status_code=404, detail="File not found")
-
-        if not file_path.is_file():
-            logger.error(f"Path is not a file: {file_path}")
-            raise HTTPException(status_code=400, detail="Path is not a file")
-
-        functions = scan_for_functions(str(file_path))
-        logger.info(f"Successfully scanned {len(functions)} functions from {file_path}")
-        return ScanResponse(path=path, functions=functions)
-
-    except HTTPException as http_exc:
-        raise http_exc
-    except Exception as e:
-        logger.exception(f"Error scanning file {path}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error scanning file: {str(e)}")
-
-
 @router.get("/repos/{username}/{repo_slug}/scan/full", response_model=FullScanResponse)
 async def get_full_scan(
     username: str,
     repo_slug: str,
-):
+) -> FullScanResponse:
     """Scan entire repository for all functions."""
     logger.info(f"Received request to scan entire repository: {username}/{repo_slug}")
     try:
@@ -152,7 +101,7 @@ async def get_full_scan(
             logger.error(f"Repository not found: {repo_path}")
             raise HTTPException(status_code=404, detail="Repository not found")
 
-        all_functions = []
+        all_files: List[FileScanResponse] = []
 
         # Walk through all .py files in the repository
         for root, dirs, files in os.walk(repo_path):
@@ -181,40 +130,26 @@ async def get_full_scan(
                         continue
 
                     try:
-                        functions = scan_for_functions(str(file_path))
+                        functions, classes = scan_for_functions(str(file_path))
                         # Add file path to each function for reference
-                        for func in functions:
-                            func_with_file = FullScanFunctionInfo(
-                                file_path=relative_path,
-                                className=func["className"],
-                                function_name=func["function_name"],
-                                input_schema={
-                                    param_name: InputSchema(
-                                        type=param["type"],
-                                        required=param["required"],
-                                        default=param["default"]
-                                        if "default" in param
-                                        else None,
-                                    )
-                                    for param_name, param in func[
-                                        "input_schema"
-                                    ].items()
-                                },
-                                output_schema=func["output_schema"],
-                                docs=func["docs"],
-                            )
-                            all_functions.append(func_with_file)
                         logger.info(
                             f"Scanned {len(functions)} functions from {relative_path}"
+                        )
+                        all_files.append(
+                            FileScanResponse(
+                                file_path=relative_path,
+                                functions=functions,
+                                classes=classes,
+                            )
                         )
                     except Exception as e:
                         logger.warning(f"Failed to scan {relative_path}: {e}")
                         continue
 
         logger.info(
-            f"Successfully scanned entire repository. Found {len(all_functions)} functions."
+            f"Successfully scanned entire repository. Found {len(all_files)} files."
         )
-        return FullScanResponse(functions=all_functions)
+        return FullScanResponse(files=all_files)
 
     except HTTPException as http_exc:
         raise http_exc

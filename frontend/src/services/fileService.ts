@@ -1,6 +1,9 @@
 import { DirectoryResponse, FileContentResponse } from "@/types/files";
+import { FullScanResponse } from "@/types/functions";
 
 const API_BASE = "http://localhost:8000/api/v1";
+
+
 
 export const fileService = {
   async listDirectory(
@@ -232,7 +235,7 @@ export const fileService = {
   async scanFullRepository(
     username: string,
     repoSlug: string,
-  ): Promise<{ functions: any[] }> {
+  ): Promise<FullScanResponse> {
     const response = await fetch(
       `${API_BASE}/repos/${username}/${repoSlug}/scan/full`,
     );

@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
 
 import { fileService } from "@/services/fileService";
-import { FunctionInfo } from "@/types/functions";
+import { FunctionDefinition, FileScanResponse } from "@/types/functions";
 
 interface FullFunctionListProps {
   username: string;
@@ -19,11 +19,21 @@ export interface FullFunctionListRef {
   scrollToFunction: (key: string) => void;
 }
 
+interface FunctionWithMeta {
+  name: string;
+  file_path: string;
+  className: string | null;
+  docstring: string | null;
+  parameters: any[]; // Keep parameters for display
+  return_type: string | null;
+}
+
 const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(({
   username,
   repoSlug,
 }, ref) => {
-  const [functions, setFunctions] = useState<FunctionInfo[]>([]);
+
+  const [functions, setFunctions] = useState<FunctionWithMeta[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editedDocstrings, setEditedDocstrings] = useState<{
@@ -56,13 +66,46 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
           repoSlug,
         );
 
-        setFunctions(response.functions);
+
+
+        // Flatten all functions from all files
+        const allFunctions: FunctionWithMeta[] = [];
+        
+        response.files.forEach((fileScan: FileScanResponse) => {
+          // Add standalone functions
+          fileScan.functions.forEach((func: FunctionDefinition) => {
+            allFunctions.push({
+              name: func.name,
+              file_path: fileScan.file_path,
+              className: null,
+              docstring: func.docstring,
+              parameters: func.parameters,
+              return_type: func.return_type,
+            });
+          });
+          
+          // Add class methods
+          fileScan.classes.forEach((cls) => {
+            cls.functions.forEach((func: FunctionDefinition) => {
+              allFunctions.push({
+                name: func.name,
+                file_path: fileScan.file_path,
+                className: cls.name,
+                docstring: func.docstring,
+                parameters: func.parameters,
+                return_type: func.return_type,
+              });
+            });
+          });
+        });
+
+        setFunctions(allFunctions);
 
         // Initialize editedDocstrings with current docstrings
         const initialEditedDocs: { [key: string]: string } = {};
-        response.functions.forEach((func) => {
-          const key = `${func.file_path}:${func.function_name}`;
-          initialEditedDocs[key] = func.docs || "";
+        allFunctions.forEach((func) => {
+          const key = `${func.file_path}:${func.name}`;
+          initialEditedDocs[key] = func.docstring || "";
         });
         setEditedDocstrings(initialEditedDocs);
       } catch (err) {
@@ -84,24 +127,24 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
     }));
   };
 
-  const handleSaveDocstring = async (func: FunctionInfo) => {
+  const handleSaveDocstring = async (func: FunctionWithMeta) => {
     setIsSaving(true);
     setError(null);
     try {
-      const key = `${func.file_path}:${func.function_name}`;
+      const key = `${func.file_path}:${func.name}`;
 
       await fileService.updateFunctionDocstring(
         username,
         repoSlug,
         func.file_path,
-        func.function_name,
+        func.name,
         editedDocstrings[key],
       );
 
       // Update local state after successful save
       const updatedFunctions = functions.map((f) => {
-        if (f.file_path === func.file_path && f.function_name === func.function_name) {
-          return { ...f, docs: editedDocstrings[key] };
+        if (f.file_path === func.file_path && f.name === func.name) {
+          return { ...f, docstring: editedDocstrings[key] };
         }
         return f;
       });
@@ -143,7 +186,7 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
       ) : (
         <div className="divide-y divide-gray-200">
           {functions.map((func) => {
-            const key = `${func.file_path}:${func.function_name}`;
+            const key = `${func.file_path}:${func.name}`;
 
             return (
               <div
@@ -159,7 +202,7 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
                           {toHumanReadable(func.className)}.
                         </span>
                       )}
-                      {toHumanReadable(func.function_name)}
+                      {toHumanReadable(func.name)}
                     </h3>
                     <p className="text-sm text-gray-500">{func.file_path}</p>
                   </div>
@@ -167,18 +210,18 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
 
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Input Schema</h4>
-                    {Object.keys(func.input_schema).length > 0 ? (
+                    <h4 className="text-sm font-semibold text-gray-800 mb-2">Parameters</h4>
+                    {func.parameters.length > 0 ? (
                       <ul className="space-y-1 ml-4">
-                        {Object.entries(func.input_schema).map(
-                          ([paramName, paramDef]) => (
-                            <li key={paramName} className="flex items-center text-sm gap-2">
-                              <span className="text-gray-700">{paramName}<span className="text-red-500">{paramDef.required ? "*" : ""}</span></span>
+                        {func.parameters.map(
+                          (param) => (
+                            <li key={param.name} className="flex items-center text-sm gap-2">
+                              <span className="text-gray-700">{param.name}<span className="text-red-500">{param.required ? "*" : ""}</span></span>
                               <span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs">
-                                {paramDef.type}
+                                {param.type}
                               </span>
                               <span className="text-gray-500 text-xs">
-                                {paramDef.default ? `Default: ${paramDef.default}` : ""}
+                                {param.default ? `Default: ${param.default}` : ""}
                               </span>
                             </li>
                           ),
@@ -189,15 +232,13 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
                     )}
                   </div>
 
-                  {func.output_schema && (
+                  {func.return_type && (
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-800 mb-2">Output Schema</h4>
+                      <h4 className="text-sm font-semibold text-gray-800 mb-2">Return Type</h4>
                       <div className="flex flex gap-2 ml-4">
-                        {func.output_schema.map((output) => (
-                          <span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs">
-                            {output}
-                          </span>
-                        ))}
+                        <span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs">
+                          {func.return_type}
+                        </span>
                       </div>
                     </div>
                   )}
