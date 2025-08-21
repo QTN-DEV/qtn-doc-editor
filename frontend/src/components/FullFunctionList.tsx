@@ -68,100 +68,6 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
   }));
 
   useEffect(() => {
-    const fetchFullScan = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fileService.scanFullRepository(
-          username,
-          repoSlug,
-        );
-
-
-
-        // Group functions by file and class
-        const fileGroups: FileGroup[] = [];
-        const allFunctionsForDocstrings: FunctionWithMeta[] = [];
-
-        response.files.forEach((fileScan: FileScanResponse) => {
-          const classGroups: ClassGroup[] = [];
-
-          // Group functions by class
-          const functionsByClass: Record<string, FunctionWithMeta[]> = {};
-
-          // Add standalone functions to "NoClass"
-          fileScan.functions.forEach((func: FunctionDefinition) => {
-            const functionWithMeta: FunctionWithMeta = {
-              name: func.name,
-              file_path: fileScan.file_path,
-              className: null,
-              docstring: func.docstring,
-              parameters: func.parameters,
-              return_type: func.return_type,
-            };
-
-            if (!functionsByClass["NoClass"]) {
-              functionsByClass["NoClass"] = [];
-            }
-            functionsByClass["NoClass"].push(functionWithMeta);
-            allFunctionsForDocstrings.push(functionWithMeta);
-          });
-
-          // Add class methods
-          fileScan.classes.forEach((cls) => {
-            cls.functions.forEach((func: FunctionDefinition) => {
-              const functionWithMeta: FunctionWithMeta = {
-                name: func.name,
-                file_path: fileScan.file_path,
-                className: cls.name,
-                docstring: func.docstring,
-                parameters: func.parameters,
-                return_type: func.return_type,
-              };
-
-              if (!functionsByClass[cls.name]) {
-                functionsByClass[cls.name] = [];
-              }
-              functionsByClass[cls.name].push(functionWithMeta);
-              allFunctionsForDocstrings.push(functionWithMeta);
-            });
-          });
-
-          // Convert to ClassGroup array
-          Object.entries(functionsByClass).forEach(([className, functions]) => {
-            classGroups.push({
-              className,
-              functions,
-            });
-          });
-
-          // Only add files that have functions
-          if (classGroups.length > 0) {
-            fileGroups.push({
-              filePath: fileScan.file_path,
-              classes: classGroups,
-            });
-          }
-        });
-
-        setFileGroups(fileGroups);
-
-        // Initialize editedDocstrings with current docstrings
-        const initialEditedDocs: { [key: string]: string } = {};
-        allFunctionsForDocstrings.forEach((func) => {
-          const key = `${func.file_path}:${func.name}`;
-          initialEditedDocs[key] = func.docstring || "";
-        });
-        setEditedDocstrings(initialEditedDocs);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load functions",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchFullScan();
   }, [username, repoSlug]);
 
@@ -172,6 +78,98 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
       ...prev,
       [key]: value,
     }));
+  };
+
+  const fetchFullScan = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fileService.scanFullRepository(
+        username,
+        repoSlug,
+      );
+
+      // Group functions by file and class
+      const fileGroups: FileGroup[] = [];
+      const allFunctionsForDocstrings: FunctionWithMeta[] = [];
+
+      response.files.forEach((fileScan: FileScanResponse) => {
+        const classGroups: ClassGroup[] = [];
+
+        // Group functions by class
+        const functionsByClass: Record<string, FunctionWithMeta[]> = {};
+
+        // Add standalone functions to "NoClass"
+        fileScan.functions.forEach((func: FunctionDefinition) => {
+          const functionWithMeta: FunctionWithMeta = {
+            name: func.name,
+            file_path: fileScan.file_path,
+            className: null,
+            docstring: func.docstring,
+            parameters: func.parameters,
+            return_type: func.return_type,
+          };
+
+          if (!functionsByClass["NoClass"]) {
+            functionsByClass["NoClass"] = [];
+          }
+          functionsByClass["NoClass"].push(functionWithMeta);
+          allFunctionsForDocstrings.push(functionWithMeta);
+        });
+
+        // Add class methods
+        fileScan.classes.forEach((cls) => {
+          cls.functions.forEach((func: FunctionDefinition) => {
+            const functionWithMeta: FunctionWithMeta = {
+              name: func.name,
+              file_path: fileScan.file_path,
+              className: cls.name,
+              docstring: func.docstring,
+              parameters: func.parameters,
+              return_type: func.return_type,
+            };
+
+            if (!functionsByClass[cls.name]) {
+              functionsByClass[cls.name] = [];
+            }
+            functionsByClass[cls.name].push(functionWithMeta);
+            allFunctionsForDocstrings.push(functionWithMeta);
+          });
+        });
+
+        // Convert to ClassGroup array
+        Object.entries(functionsByClass).forEach(([className, functions]) => {
+          classGroups.push({
+            className,
+            functions,
+          });
+        });
+
+        // Only add files that have functions
+        if (classGroups.length > 0) {
+          fileGroups.push({
+            filePath: fileScan.file_path,
+            classes: classGroups,
+          });
+        }
+      });
+
+      setFileGroups(fileGroups);
+
+      // Initialize editedDocstrings with current docstrings
+      const initialEditedDocs: { [key: string]: string } = {};
+      allFunctionsForDocstrings.forEach((func) => {
+        const key = `${func.file_path}:${func.name}`;
+        initialEditedDocs[key] = func.docstring || "";
+      });
+      setEditedDocstrings(initialEditedDocs);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load functions",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveDocstring = async (func: FunctionWithMeta) => {
@@ -188,21 +186,8 @@ const FullFunctionList = forwardRef<FullFunctionListRef, FullFunctionListProps>(
         editedDocstrings[key],
       );
 
-      // Update local state after successful save
-      const updatedFileGroups = fileGroups.map((fileGroup) => ({
-        ...fileGroup,
-        classes: fileGroup.classes.map((classGroup) => ({
-          ...classGroup,
-          functions: classGroup.functions.map((f) => {
-            if (f.file_path === func.file_path && f.name === func.name) {
-              return { ...f, docstring: editedDocstrings[key] };
-            }
-            return f;
-          }),
-        })),
-      }));
-
-      setFileGroups(updatedFileGroups);
+      // Refetch all data since the function implementation may have changed
+      await fetchFullScan();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save docstring");
     } finally {

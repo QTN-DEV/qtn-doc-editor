@@ -41,41 +41,6 @@ export default function FunctionList({
 
   useEffect(() => {
     if (!filePath) return;
-
-    const fetchFunctions = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fileService.scanFunctions(
-          username,
-          repoSlug,
-          filePath,
-        );
-
-        setFunctions(response.functions);
-        // Initialize all functions as expanded
-        const allExpanded = new Set<number>();
-        response.functions.forEach((_, index) => {
-          allExpanded.add(index);
-        });
-        setExpandedFunctions(allExpanded);
-
-        // Initialize editedDocstrings with current docstrings
-        const initialEditedDocs: { [key: number]: string } = {};
-
-        response.functions.forEach((func, index) => {
-          initialEditedDocs[index] = func.docs || "";
-        });
-        setEditedDocstrings(initialEditedDocs);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load functions",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchFunctions();
   }, [username, repoSlug, filePath]);
 
@@ -84,6 +49,38 @@ export default function FunctionList({
       ...prev,
       [index]: value,
     }));
+  };
+
+  const fetchFunctions = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fileService.scanFunctions(
+        username,
+        repoSlug,
+        filePath,
+      );
+
+      setFunctions(response.functions);
+      // Initialize all functions as expanded
+      const allExpanded = new Set<number>();
+      response.functions.forEach((_, index) => {
+        allExpanded.add(index);
+      });
+      setExpandedFunctions(allExpanded);
+
+      // Initialize editedDocstrings with current docstrings
+      const initialEditedDocs: { [key: number]: string } = {};
+
+      response.functions.forEach((func, index) => {
+        initialEditedDocs[index] = func.docs || "";
+      });
+      setEditedDocstrings(initialEditedDocs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load functions");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveDocstring = async (index: number) => {
@@ -98,11 +95,8 @@ export default function FunctionList({
         editedDocstrings[index],
       );
 
-      // Update local state after successful save
-      const updatedFunctions = [...functions];
-
-      updatedFunctions[index].docs = editedDocstrings[index];
-      setFunctions(updatedFunctions);
+      // Refetch all data since the function implementation may have changed
+      await fetchFunctions();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save docstring");
     } finally {
