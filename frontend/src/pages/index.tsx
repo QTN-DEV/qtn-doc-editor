@@ -50,11 +50,16 @@ export default function IndexPage() {
     });
 
     try {
-      const [username, repoSlug] = githubRepo.split("/");
-      const response = await fileService.initRepo(username, repoSlug);
+      const response = await fileService.initRepo(pat, githubRepo);
 
       if (response.status === "success") {
-        navigate(response.redirect_url);
+        if (response.redirect_url) {
+          navigate(response.redirect_url);
+        } else {
+          // Fallback if no redirect URL provided
+          const [username, repoSlug] = githubRepo.split("/");
+          navigate(`/level1editor?username=${username}&repoSlug=${repoSlug}`);
+        }
       } else {
         Swal.fire({
           icon: "error",

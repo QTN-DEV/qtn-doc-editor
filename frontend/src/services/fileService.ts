@@ -6,6 +6,43 @@ const API_BASE = "http://localhost:8000/api/v1";
 
 
 export const fileService = {
+  async initRepo(
+    pat: string,
+    githubRepo: string,
+  ): Promise<{ status: string; message?: string; error?: string; redirect_url?: string }> {
+    const response = await fetch(
+      `${API_BASE}/init`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pat,
+          github_repo: githubRepo,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Failed to initialize repository: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    
+    // If successful, return with redirect URL
+    if (result.status === 'success') {
+      const [username, repoSlug] = githubRepo.split('/');
+      return {
+        ...result,
+        redirect_url: `/1/${username}/${repoSlug}`,
+      };
+    }
+    
+    return result;
+  },
+
   async listDirectory(
     username: string,
     repoSlug: string,
