@@ -9,11 +9,8 @@ import { fileService } from "@/services/fileService";
 import { FileItem } from "@/types/files";
 
 interface DirectoryTreeProps {
-  username: string;
-  repoSlug: string;
   activeFile: string | null;
   onFileSelect: (filePath: string) => void;
-  filter?: string[];
 }
 
 interface TreeNode extends FileItem {
@@ -22,11 +19,8 @@ interface TreeNode extends FileItem {
 }
 
 export default function DirectoryTree({
-  username,
-  repoSlug,
   activeFile,
   onFileSelect,
-  filter,
 }: DirectoryTreeProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -85,12 +79,7 @@ export default function DirectoryTree({
     setError(null);
 
     try {
-      const response = await fileService.listDirectory(
-        username,
-        repoSlug,
-        path,
-        filter,
-      );
+      const response = await fileService.listDirectory(path);
       const items = response.items.map((item) => ({
         ...item,
         isExpanded: false,
@@ -227,7 +216,7 @@ export default function DirectoryTree({
 
   const handleCreateFile = async (filename: string) => {
     try {
-      await fileService.createFile(username, repoSlug, filename);
+      await fileService.createFile(filename);
 
       // Reload the current directory to show the new file
       const currentPath = createModal.currentPath;
@@ -256,7 +245,7 @@ export default function DirectoryTree({
 
   const handleCreateFolder = async (dirname: string) => {
     try {
-      await fileService.createDirectory(username, repoSlug, dirname);
+      await fileService.createDirectory(dirname);
 
       // Reload the current directory to show the new folder
       const currentPath = createModal.currentPath;
@@ -365,7 +354,7 @@ export default function DirectoryTree({
 
   const handleDeleteFile = async () => {
     try {
-      await fileService.deleteFile(username, repoSlug, deleteModal.itemPath);
+      await fileService.deleteFile(deleteModal.itemPath);
 
       // Reload the parent directory to reflect the deletion
       const parentPath = deleteModal.itemPath.split("/").slice(0, -1).join("/");
@@ -389,8 +378,6 @@ export default function DirectoryTree({
   const handleRenameFile = async (newName: string) => {
     try {
       const response = await fileService.renameFile(
-        username,
-        repoSlug,
         renameModal.itemPath,
         newName,
       );
@@ -428,7 +415,7 @@ export default function DirectoryTree({
 
   useEffect(() => {
     loadDirectory();
-  }, [username, repoSlug]);
+  }, []);
 
   const renderTreeItem = (item: TreeNode, level: number = 0) => {
     const isExpanded = expandedFolders.has(item.path);

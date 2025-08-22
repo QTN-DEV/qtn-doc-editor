@@ -2,15 +2,78 @@
 
 Handle directory listing and file content retrieval operations.
 """
-
+import subprocess
+import time
 from pathlib import Path
 from typing import List
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from fnmatch import fnmatch
-
+from constants import USERNAME, REPO_SLUG
 
 router = APIRouter()
+def _commit_and_push_changes(repo_path: Path):
+    """Commit and push all changes with a timestamp-based message."""
+    try:
+        # Get current timestamp for commit message
+        timestamp_message = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Stage all changes
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30
+        )
+
+        # Check if there are any changes to commit
+        status_result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10
+        )
+        if not status_result.stdout.strip():
+            # No changes to commit
+            return
+
+        # Commit changes
+        subprocess.run(
+            ["git", "commit", "-m", timestamp_message],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30
+        )
+
+        # Push changes
+        subprocess.run(
+            ["git", "push"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60
+        )
+
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        # In a real application, you'd want to log this error.
+        # For this example, we'll let it fail silently or raise an
+        # internal server error if not handled by the calling function.
+        # We can add more specific error handling here if needed.
+        print(f"Git operation failed: {e}")
+        # Optionally re-raise or handle as an HTTP exception
+        raise HTTPException(
+            status_code=500,
+            detail=f"Git operation failed: {e.stderr or e}"
+        )
+
+
 
 
 class FileItem(BaseModel):
@@ -141,10 +204,8 @@ class CommitResponse(BaseModel):
     files_committed: int
 
 
-@router.get("/repos/{username}/{repo_slug}/files", response_model=DirectoryResponse)
+@router.get("/repos/files", response_model=DirectoryResponse)
 async def list_directory(
-    username: str,
-    repo_slug: str,
     path: str = Query(
         default="", description="Directory path relative to repository root"
     ),
@@ -155,7 +216,7 @@ async def list_directory(
     """List directory contents for a repository."""
     try:
         # Construct the full repository path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         if not repo_path.exists():
             raise HTTPException(status_code=404, detail="Repository not found")
 
@@ -258,11 +319,9 @@ async def list_directory(
 
 
 @router.get(
-    "/repos/{username}/{repo_slug}/files/content", response_model=FileContentResponse
+    "/repos/files/content", response_model=FileContentResponse
 )
 async def get_file_content(
-    username: str,
-    repo_slug: str,
     path: str = Query(description="File path relative to repository root"),
 ):
     """Get file content for a specific file."""
@@ -271,7 +330,7 @@ async def get_file_content(
             raise HTTPException(status_code=400, detail="File path is required")
 
             # Construct the full file path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         file_path = repo_path / path
 
         if not file_path.exists():
@@ -335,11 +394,9 @@ async def get_file_content(
 
 
 @router.put(
-    "/repos/{username}/{repo_slug}/files/content", response_model=SaveFileResponse
+    "/repos/files/content", response_model=SaveFileResponse
 )
 async def save_file_content(
-    username: str,
-    repo_slug: str,
     path: str = Query(description="File path relative to repository root"),
     file_data: SaveFileRequest = None,
 ):
@@ -352,7 +409,7 @@ async def save_file_content(
             raise HTTPException(status_code=400, detail="File content is required")
 
         # Construct the full file path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         file_path = repo_path / path
 
         # Check if repository exists
@@ -405,6 +462,8 @@ async def save_file_content(
                 status_code=500, detail=f"Error writing file: {str(write_error)}"
             )
 
+        _commit_and_push_changes(repo_path)
+
         return SaveFileResponse(
             path=path,
             message="File saved successfully",
@@ -419,11 +478,9 @@ async def save_file_content(
 
 
 @router.post(
-    "/repos/{username}/{repo_slug}/files/create", response_model=CreateFileResponse
+    "/repos/files/create", response_model=CreateFileResponse
 )
 async def create_file(
-    username: str,
-    repo_slug: str,
     file_data: CreateFileRequest,
 ):
     """Create a new file in the repository."""
@@ -432,7 +489,7 @@ async def create_file(
             raise HTTPException(status_code=400, detail="Filename is required")
 
         # Construct the full file path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         file_path = repo_path / file_data.filename
 
         # Check if repository exists
@@ -454,6 +511,8 @@ async def create_file(
                 status_code=500, detail=f"Error creating file: {str(write_error)}"
             )
 
+        _commit_and_push_changes(repo_path)
+
         return CreateFileResponse(
             path=str(file_path.relative_to(repo_path)),
             message="File created successfully",
@@ -468,11 +527,9 @@ async def create_file(
 
 
 @router.post(
-    "/repos/{username}/{repo_slug}/files/create-directory", response_model=CreateDirectoryResponse
+    "/repos/files/create-directory", response_model=CreateDirectoryResponse
 )
 async def create_directory(
-    username: str,
-    repo_slug: str,
     dir_data: CreateDirectoryRequest,
 ):
     """Create a new directory in the repository."""
@@ -481,7 +538,7 @@ async def create_directory(
             raise HTTPException(status_code=400, detail="Directory name is required")
 
         # Construct the full directory path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         dir_path = repo_path / dir_data.dirname
 
         # Check if repository exists
@@ -498,10 +555,15 @@ async def create_directory(
         # Create the new directory
         try:
             dir_path.mkdir(parents=True, exist_ok=False)
+            # Create a .gitkeep file inside the new directory
+            gitkeep_path = dir_path / ".gitkeep"
+            gitkeep_path.touch(exist_ok=True)
         except Exception as create_error:
             raise HTTPException(
                 status_code=500, detail=f"Error creating directory: {str(create_error)}"
             )
+
+        _commit_and_push_changes(repo_path)
 
         return CreateDirectoryResponse(
             path=str(dir_path.relative_to(repo_path)),
@@ -516,11 +578,9 @@ async def create_directory(
 
 
 @router.delete(
-    "/repos/{username}/{repo_slug}/files/delete", response_model=DeleteFileResponse
+    "/repos/files/delete", response_model=DeleteFileResponse
 )
 async def delete_file(
-    username: str,
-    repo_slug: str,
     file_data: DeleteFileRequest,
 ):
     """Delete a specific file or directory from the repository."""
@@ -529,7 +589,7 @@ async def delete_file(
             raise HTTPException(status_code=400, detail="File path is required")
 
         # Construct the full file path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         target_path = repo_path / file_data.path
 
         # Check if repository exists
@@ -589,6 +649,8 @@ async def delete_file(
                 status_code=500, detail=f"Error deleting file/directory: {str(delete_error)}"
             )
 
+        _commit_and_push_changes(repo_path)
+
         return DeleteFileResponse(
             path=file_data.path,
             message="File or directory deleted successfully",
@@ -602,11 +664,9 @@ async def delete_file(
 
 
 @router.put(
-    "/repos/{username}/{repo_slug}/files/rename", response_model=RenameFileResponse
+    "/repos/files/rename", response_model=RenameFileResponse
 )
 async def rename_file(
-    username: str,
-    repo_slug: str,
     file_data: RenameFileRequest,
 ):
     """Rename a file or directory in the repository."""
@@ -618,7 +678,7 @@ async def rename_file(
             raise HTTPException(status_code=400, detail="New name is required")
 
         # Construct the full file paths
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         old_path = repo_path / file_data.old_path
         
         # Calculate new path
@@ -686,6 +746,8 @@ async def rename_file(
                 status_code=500, detail=f"Error renaming file/directory: {str(rename_error)}"
             )
 
+        _commit_and_push_changes(repo_path)
+
         return RenameFileResponse(
             old_path=file_data.old_path,
             new_path=str(new_path.relative_to(repo_path)),
@@ -700,16 +762,14 @@ async def rename_file(
 
 
 @router.get(
-    "/repos/{username}/{repo_slug}/files/changed", response_model=ChangedFileResponse
+    "/repos/files/changed", response_model=ChangedFileResponse
 )
 async def get_changed_files(
-    username: str,
-    repo_slug: str,
 ):
     """Get list of changed files in the repository using git status."""
     try:
         # Construct the full repository path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
+        repo_path = Path(f"../repo/{USERNAME}/{REPO_SLUG}")
         if not repo_path.exists():
             raise HTTPException(status_code=404, detail="Repository not found")
 
@@ -788,128 +848,6 @@ async def get_changed_files(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting changed files: {str(e)}")
-
-
-@router.post(
-    "/repos/{username}/{repo_slug}/git/commit", response_model=CommitResponse
-)
-async def commit_and_push(
-    username: str,
-    repo_slug: str,
-    commit_data: CommitRequest,
-):
-    """Commit and push changes to the repository."""
-    try:
-        # Construct the full repository path
-        repo_path = Path(f"../repo/{username}/{repo_slug}")
-        if not repo_path.exists():
-            raise HTTPException(status_code=404, detail="Repository not found")
-
-        # Check if this is a git repository
-        git_dir = repo_path / ".git"
-        if not git_dir.exists() or not git_dir.is_dir():
-            raise HTTPException(
-                status_code=400, 
-                detail="Repository is not a git repository"
-            )
-
-        if not commit_data.message or not commit_data.message.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="Commit message is required"
-            )
-
-        import subprocess
-
-        try:
-            # Stage all changes
-            result = subprocess.run(
-                ["git", "add", "."],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-
-            if result.returncode != 0:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to stage changes: {result.stderr}"
-                )
-
-            # Commit changes
-            result = subprocess.run(
-                ["git", "commit", "-m", commit_data.message.strip()],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-
-            if result.returncode != 0:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to commit changes: {result.stderr}"
-                )
-
-            # Get commit hash
-            result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-
-            if result.returncode != 0:
-                commit_hash = "unknown"
-            else:
-                commit_hash = result.stdout.strip()[:8]  # First 8 characters
-
-            # Push changes
-            result = subprocess.run(
-                ["git", "push"],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-
-            if result.returncode != 0:
-                # Commit succeeded but push failed
-                return CommitResponse(
-                    message="Changes committed successfully, but push failed. You may need to configure remote or credentials.",
-                    commit_hash=commit_hash,
-                    files_committed=1
-                )
-
-            return CommitResponse(
-                message="Changes committed and pushed successfully",
-                commit_hash=commit_hash,
-                files_committed=1
-            )
-
-        except subprocess.TimeoutExpired:
-            raise HTTPException(
-                status_code=500,
-                detail="Git operation timed out"
-            )
-        except FileNotFoundError:
-            raise HTTPException(
-                status_code=500,
-                detail="Git command not found on system"
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error during git operations: {str(e)}"
-            )
-
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error committing changes: {str(e)}")
 
 
 def _should_ignore_file(repo_path: Path, file_path: str) -> bool:

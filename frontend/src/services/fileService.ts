@@ -3,51 +3,9 @@ import { FullScanResponse } from "@/types/functions";
 
 const API_BASE = "http://localhost:8000/api/v1";
 
-
-
 export const fileService = {
-  async initRepo(
-    pat: string,
-    githubRepo: string,
-  ): Promise<{ status: string; message?: string; error?: string; redirect_url?: string }> {
-    const response = await fetch(
-      `${API_BASE}/init`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pat,
-          github_repo: githubRepo,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Failed to initialize repository: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    
-    // If successful, return with redirect URL
-    if (result.status === 'success') {
-      const [username, repoSlug] = githubRepo.split('/');
-      return {
-        ...result,
-        redirect_url: `/1/${username}/${repoSlug}`,
-      };
-    }
-    
-    return result;
-  },
-
   async listDirectory(
-    username: string,
-    repoSlug: string,
     path: string = "",
-    filter?: string[],
   ): Promise<DirectoryResponse> {
     const params = new URLSearchParams();
 
@@ -55,12 +13,8 @@ export const fileService = {
       params.append("path", path);
     }
 
-    if (filter) {
-      params.append("filter", filter.join(","));
-    }
-
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files?${params.toString()}`,
+      `${API_BASE}/repos/files?${params.toString()}`,
     );
 
     if (!response.ok) {
@@ -71,14 +25,12 @@ export const fileService = {
   },
 
   async getFileContent(
-    username: string,
-    repoSlug: string,
     path: string,
   ): Promise<FileContentResponse> {
     const params = new URLSearchParams({ path });
 
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/content?${params.toString()}`,
+      `${API_BASE}/repos/files/content?${params.toString()}`,
     );
 
     if (!response.ok) {
@@ -89,8 +41,6 @@ export const fileService = {
   },
 
   async saveFile(
-    username: string,
-    repoSlug: string,
     path: string,
     content: string,
     encoding: string = "utf-8",
@@ -98,7 +48,7 @@ export const fileService = {
     const params = new URLSearchParams({ path });
 
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/content?${params.toString()}`,
+      `${API_BASE}/repos/files/content?${params.toString()}`,
       {
         method: "PUT",
         headers: {
@@ -115,16 +65,13 @@ export const fileService = {
     return response.json();
   },
 
-  async getChangedFiles(
-    username: string,
-    repoSlug: string,
-  ): Promise<{
+  async getChangedFiles(): Promise<{
     changed_files: string[];
     total_changed: number;
     last_check: string;
   }> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/changed`,
+      `${API_BASE}/repos/files/changed`,
     );
 
     if (!response.ok) {
@@ -134,38 +81,13 @@ export const fileService = {
     return response.json();
   },
 
-  async commitAndPush(
-    username: string,
-    repoSlug: string,
-    commitMessage: string,
-  ): Promise<{ message: string; commit_hash: string }> {
-    const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/git/commit`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: commitMessage }),
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to commit and push: ${response.statusText}`);
-    }
-
-    return response.json();
-  },
-
   async createFile(
-    username: string,
-    repoSlug: string,
     filename: string,
     content: string = "",
     encoding: string = "utf-8",
   ): Promise<{ path: string; message: string; encoding: string }> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/create`,
+      `${API_BASE}/repos/files/create`,
       {
         method: "POST",
         headers: {
@@ -183,12 +105,10 @@ export const fileService = {
   },
 
   async createDirectory(
-    username: string,
-    repoSlug: string,
     dirname: string,
   ): Promise<{ path: string; message: string }> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/create-directory`,
+      `${API_BASE}/repos/files/create-directory`,
       {
         method: "POST",
         headers: {
@@ -206,12 +126,10 @@ export const fileService = {
   },
 
   async deleteFile(
-    username: string,
-    repoSlug: string,
     path: string,
   ): Promise<{ path: string; message: string }> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/delete`,
+      `${API_BASE}/repos/files/delete`,
       {
         method: "DELETE",
         headers: {
@@ -229,13 +147,11 @@ export const fileService = {
   },
 
   async renameFile(
-    username: string,
-    repoSlug: string,
     oldPath: string,
     newName: string,
   ): Promise<{ old_path: string; new_path: string; message: string }> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/files/rename`,
+      `${API_BASE}/repos/files/rename`,
       {
         method: "PUT",
         headers: {
@@ -253,13 +169,11 @@ export const fileService = {
   },
 
   async scanFunctions(
-    username: string,
-    repoSlug: string,
     path: string,
   ): Promise<{ path: string; functions: any[] }> {
     const params = new URLSearchParams({ path });
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/scan/functions?${params.toString()}`,
+      `${API_BASE}/repos/scan/functions?${params.toString()}`,
     );
 
     if (!response.ok) {
@@ -270,11 +184,9 @@ export const fileService = {
   },
 
   async scanFullRepository(
-    username: string,
-    repoSlug: string,
   ): Promise<FullScanResponse> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/scan/full`,
+      `${API_BASE}/repos/scan/full`,
     );
 
     if (!response.ok) {
@@ -285,14 +197,12 @@ export const fileService = {
   },
 
   async updateFunctionDocstring(
-    username: string,
-    repoSlug: string,
     filePath: string,
     functionName: string,
     newDocstring: string,
   ): Promise<{ message: string; status: string }> {
     const response = await fetch(
-      `${API_BASE}/repos/${username}/${repoSlug}/scan/functions/docstring`,
+      `${API_BASE}/repos/scan/functions/docstring`,
       {
         method: "PUT",
         headers: {

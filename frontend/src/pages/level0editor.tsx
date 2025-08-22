@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
 
 import DirectoryTree from "@/components/DirectoryTree";
 import CodeEditor from "@/components/CodeEditor";
-import GitTab from "@/components/GitTab";
 
 export default function Level0EditorPage() {
-  const { username, repoSlug } = useParams();
+  const username = "QTN-DEV";
+  const repoSlug = "qtn-doc";
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [activeFile, setActiveFile] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"folders" | "git">("folders");
 
   const handleFileSelect = (filePath: string) => {
     setSelectedFile(filePath);
@@ -33,55 +31,12 @@ export default function Level0EditorPage() {
               </h2>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="bg-gray-100 border-b border-gray-200">
-              <div className="flex">
-                <button
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === "folders"
-                      ? "bg-white text-gray-900 border-b-2 border-blue-500"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setActiveTab("folders")}
-                >
-                  Folders
-                </button>
-                <button
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === "git"
-                      ? "bg-white text-gray-900 border-b-2 border-blue-500"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setActiveTab("git")}
-                >
-                  Git
-                </button>
-              </div>
-            </div>
-
             {/* Tab Content */}
             <div className="relative h-full">
               {/* Folders Tab */}
-              <div
-                className={`absolute inset-0 transition-opacity duration-200 ${
-                  activeTab === "folders" ? "opacity-100 z-10" : "opacity-0 z-0"
-                }`}
-              >
+              <div className="absolute inset-0 transition-opacity duration-200 opacity-100 z-10">
                 <DirectoryTree
                   activeFile={activeFile}
-                  repoSlug={repoSlug!}
-                  username={username!}
-                  onFileSelect={handleFileSelect}
-                />
-              </div>
-
-              {/* Git Tab */}
-              <div
-                className={`absolute inset-0 transition-opacity duration-200 bg-white ${
-                  activeTab === "git" ? "opacity-100 z-10" : "opacity-0 z-0"
-                }`}
-              >
-                <GitTab
                   repoSlug={repoSlug!}
                   username={username!}
                   onFileSelect={handleFileSelect}

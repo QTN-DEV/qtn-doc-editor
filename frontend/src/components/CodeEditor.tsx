@@ -7,22 +7,19 @@ import { fileService } from "@/services/fileService";
 import { Tab } from "@/types/files";
 
 interface CodeEditorProps {
-  username: string;
-  repoSlug: string;
   filePath: string | null;
   onFileSelect: (filePath: string) => void;
   onActiveFileChange: (filePath: string | null) => void;
 }
 
 export default function CodeEditor({
-  username,
-  repoSlug,
   filePath,
   onActiveFileChange,
 }: CodeEditorProps) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [modifiedTabs, setModifiedTabs] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Handle Ctrl+W keyboard shortcut
   useEffect(() => {
@@ -88,8 +85,6 @@ export default function CodeEditor({
     const addTab = async () => {
       try {
         const response = await fileService.getFileContent(
-          username,
-          repoSlug,
           filePath,
         );
         const fileName = filePath.split("/").pop() || "";
@@ -137,7 +132,7 @@ export default function CodeEditor({
     };
 
     addTab();
-  }, [username, repoSlug, filePath]);
+  }, [filePath]);
 
   const handleTabClick = (tabId: string) => {
     setTabs((prevTabs) =>
@@ -214,10 +209,9 @@ export default function CodeEditor({
   const handleSaveFile = async () => {
     if (!activeTabId || !activeTab) return;
 
+    setIsSaving(true);
     try {
       await fileService.saveFile(
-        username,
-        repoSlug,
         activeTab.path,
         activeTab.content,
       );
@@ -234,6 +228,8 @@ export default function CodeEditor({
       // Show success feedback (you could add a toast notification here)
     } catch {
       // You could add error handling/notification here
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -281,7 +277,13 @@ export default function CodeEditor({
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-900 relative">
+      {isSaving && (
+        <div className="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+      {/* Tab Bar */}
       {/* Tab Bar */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="flex items-center overflow-x-auto scrollbar-tabs">

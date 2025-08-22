@@ -8,9 +8,7 @@ load_dotenv()
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.controllers.init_controller import router as init_router
 from src.controllers.file_controller import router as file_router
-from src.controllers.scan_controller import router as scan_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,9 +26,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(init_router, prefix="/api/v1")
 app.include_router(file_router, prefix="/api/v1")
-app.include_router(scan_router, prefix="/api/v1")
 
 
 @app.get("/")
