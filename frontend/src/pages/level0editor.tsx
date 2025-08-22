@@ -4,8 +4,6 @@ import DirectoryTree from "@/components/DirectoryTree";
 import CodeEditor from "@/components/CodeEditor";
 
 export default function Level0EditorPage() {
-  const username = "QTN-DEV";
-  const repoSlug = "qtn-doc";
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [activeFile, setActiveFile] = useState<string | null>(null);
 
@@ -37,8 +35,6 @@ export default function Level0EditorPage() {
               <div className="absolute inset-0 transition-opacity duration-200 opacity-100 z-10">
                 <DirectoryTree
                   activeFile={activeFile}
-                  repoSlug={repoSlug!}
-                  username={username!}
                   onFileSelect={handleFileSelect}
                 />
               </div>
@@ -49,8 +45,6 @@ export default function Level0EditorPage() {
           <main className="col-span-3 bg-white overflow-auto">
             <CodeEditor
               filePath={selectedFile}
-              repoSlug={repoSlug!}
-              username={username!}
               onActiveFileChange={handleActiveFileChange}
               onFileSelect={handleFileSelect}
             />

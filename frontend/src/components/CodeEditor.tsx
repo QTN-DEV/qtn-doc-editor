@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import CodeMirror from "@uiw/react-codemirror";
-import { python } from "@codemirror/lang-python";
-import { oneDark } from "@codemirror/theme-one-dark";
+import Editor from "rich-markdown-editor";
 
 import { fileService } from "@/services/fileService";
 import { Tab } from "@/types/files";
@@ -58,10 +56,10 @@ export default function CodeEditor({
         prevTabs.map((tab) =>
           tab.path === detail.oldPath
             ? {
-                ...tab,
-                path: detail.newPath,
-                name: detail.newPath.split("/").pop() || "",
-              }
+              ...tab,
+              path: detail.newPath,
+              name: detail.newPath.split("/").pop() || "",
+            }
             : tab,
         ),
       );
@@ -192,8 +190,10 @@ export default function CodeEditor({
     });
   };
 
-  const handleContentChange = (value: string) => {
+  const handleContentChange = (getValue: () => string) => {
     if (!activeTabId) return;
+
+    const value = getValue();
 
     // Mark the active tab as modified
     setModifiedTabs((prev) => new Set(prev).add(activeTabId));
@@ -242,17 +242,17 @@ export default function CodeEditor({
 
   if (tabs.length === 0) {
     return (
-      <div className="h-full flex flex-col bg-gray-900">
+      <div className="h-full flex flex-col bg-white">
         {/* Empty Tab Bar */}
-        <div className="bg-gray-800 border-b border-gray-700 p-2 flex items-center">
-          <span className="text-sm text-gray-500">No files open</span>
+        <div className="bg-gray-50 border-b border-gray-200 p-3 flex items-center">
+          <span className="text-sm text-gray-500">No documents open</span>
         </div>
 
         {/* Empty State */}
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center bg-white">
           <div className="text-center">
             <svg
-              className="mx-auto h-16 w-16 text-gray-600"
+              className="mx-auto h-16 w-16 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -264,11 +264,11 @@ export default function CodeEditor({
                 strokeWidth={1}
               />
             </svg>
-            <h3 className="mt-4 text-lg font-medium text-gray-400">
-              No files open
+            <h3 className="mt-4 text-lg font-medium text-gray-700">
+              No documents open
             </h3>
             <p className="mt-2 text-sm text-gray-500">
-              Select a file from the explorer to start editing.
+              Select a document from the explorer to start writing.
             </p>
           </div>
         </div>
@@ -277,24 +277,21 @@ export default function CodeEditor({
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 relative">
+    <div className="h-full flex flex-col bg-white relative">
       {isSaving && (
-        <div className="absolute inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
           <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       )}
-      {/* Tab Bar */}
-      {/* Tab Bar */}
-      <div className="bg-gray-800 border-b border-gray-700">
+      <div className="bg-gray-50 border-b border-gray-200">
         <div className="flex items-center overflow-x-auto scrollbar-tabs">
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`flex items-center px-4 py-2 border-r border-gray-700 cursor-pointer transition-colors ${
-                tab.isActive
-                  ? "bg-gray-900 text-gray-200"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-              }`}
+              className={`flex items-center px-4 py-3 border-r border-gray-200 cursor-pointer transition-colors ${tab.isActive
+                  ? "bg-white text-gray-900 border-b-2 border-blue-500"
+                  : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                }`}
               onClick={() => handleTabClick(tab.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -304,7 +301,7 @@ export default function CodeEditor({
               }}
             >
               <svg
-                className="w-4 h-4 text-blue-400 mr-2"
+                className="w-4 h-4 text-blue-500 mr-2"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -321,7 +318,7 @@ export default function CodeEditor({
                 )}
               </span>
               <button
-                className="ml-2 text-gray-500 hover:text-gray-300 transition-colors"
+                className="ml-2 text-gray-400 hover:text-gray-600 transition-colors"
                 onClick={(e) => handleTabClose(tab.id, e)}
               >
                 <svg
@@ -369,42 +366,18 @@ export default function CodeEditor({
         </div>
       </div>
 
-      {/* Code Editor */}
-      <div className="flex-1 overflow-auto">
-        <CodeMirror
-          basicSetup={{
-            lineNumbers: true,
-            foldGutter: true,
-            dropCursor: false,
-            indentOnInput: false,
-          }}
-          editable={true}
-          extensions={[python()]}
-          theme={oneDark}
-          value={activeTab?.content || ""}
-          onChange={handleContentChange}
-        />
-
-        {/* Scrollbar Styling */}
-        <style>{`
-          .cm-scroller {
-            font-family: 'Consolas', 'Monaco', 'Lucida Console', monospace !important;
-          }
-          
-          .scrollbar-tabs::-webkit-scrollbar {
-            height: 8px;
-          }
-          .scrollbar-tabs::-webkit-scrollbar-track {
-            background: #374151;
-          }
-          .scrollbar-tabs::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 4px;
-          }
-          .scrollbar-tabs::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
-          }
-        `}</style>
+      <div className="flex-1 overflow-auto bg-white">
+        <div className="h-full p-6">
+          <Editor
+            key={activeTab?.id || "editor"}
+            defaultValue={activeTab?.content || ""}
+            onChange={handleContentChange}
+            placeholder="Start writing your document..."
+            readOnly={false}
+            dark={false}
+            autoFocus={true}
+          />
+        </div>
       </div>
     </div>
   );
