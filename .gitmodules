@@ -1,0 +1,3 @@
+[submodule "repo/QTN-DEV/qtn-doc"]
+	path = repo/QTN-DEV/qtn-doc
+	url = https://github.com/QTN-DEV/qtn-doc
