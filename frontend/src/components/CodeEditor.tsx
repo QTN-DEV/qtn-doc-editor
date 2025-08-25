@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/no-autofocus */
 import { useState, useEffect } from "react";
 import Editor from "rich-markdown-editor";
 
@@ -56,10 +57,10 @@ export default function CodeEditor({
         prevTabs.map((tab) =>
           tab.path === detail.oldPath
             ? {
-              ...tab,
-              path: detail.newPath,
-              name: detail.newPath.split("/").pop() || "",
-            }
+                ...tab,
+                path: detail.newPath,
+                name: detail.newPath.split("/").pop() || "",
+              }
             : tab,
         ),
       );
@@ -82,9 +83,7 @@ export default function CodeEditor({
 
     const addTab = async () => {
       try {
-        const response = await fileService.getFileContent(
-          filePath,
-        );
+        const response = await fileService.getFileContent(filePath);
         const fileName = filePath.split("/").pop() || "";
         const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -211,10 +210,7 @@ export default function CodeEditor({
 
     setIsSaving(true);
     try {
-      await fileService.saveFile(
-        activeTab.path,
-        activeTab.content,
-      );
+      await fileService.saveFile(activeTab.path, activeTab.content);
 
       // Remove the tab from modified tabs after successful save
       setModifiedTabs((prev) => {
@@ -280,7 +276,7 @@ export default function CodeEditor({
     <div className="h-full flex flex-col bg-white relative">
       {isSaving && (
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500" />
         </div>
       )}
       <div className="bg-gray-50 border-b border-gray-200">
@@ -288,10 +284,11 @@ export default function CodeEditor({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`flex items-center px-4 py-3 border-r border-gray-200 cursor-pointer transition-colors ${tab.isActive
+              className={`flex items-center px-4 py-3 border-r border-gray-200 cursor-pointer transition-colors ${
+                tab.isActive
                   ? "bg-white text-gray-900 border-b-2 border-blue-500"
                   : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}
+              }`}
               onClick={() => handleTabClick(tab.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -370,12 +367,12 @@ export default function CodeEditor({
         <div className="h-full p-6">
           <Editor
             key={activeTab?.id || "editor"}
+            autoFocus={true}
+            dark={false}
             defaultValue={activeTab?.content || ""}
-            onChange={handleContentChange}
             placeholder="Start writing your document..."
             readOnly={false}
-            dark={false}
-            autoFocus={true}
+            onChange={handleContentChange}
           />
         </div>
       </div>

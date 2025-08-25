@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import DirectoryTree from "@/components/DirectoryTree";
-import CodeEditor from "@/components/CodeEditor";
+import TipTapEditor from "@/components/TipTapEditor";
 
 export default function Level0EditorPage() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -41,9 +41,9 @@ export default function Level0EditorPage() {
             </div>
           </aside>
 
-          {/* Right Panel - Code Editor */}
+          {/* Right Panel - TipTap Editor */}
           <main className="col-span-3 bg-white overflow-auto">
-            <CodeEditor
+            <TipTapEditor
               filePath={selectedFile}
               onActiveFileChange={handleActiveFileChange}
               onFileSelect={handleFileSelect}

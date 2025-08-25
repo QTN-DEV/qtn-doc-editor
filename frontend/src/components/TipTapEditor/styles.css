@@ -1,0 +1,674 @@
+/* CSS Variables */
+:root {
+  --white: #ffffff;
+  --black: #000000;
+  --gray-1: #f9fafb;
+  --gray-2: #e5e7eb;
+  --gray-3: #d1d5db;
+  --gray-4: #9ca3af;
+  --gray-5: #6b7280;
+  --purple-light: #f3f4f6;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --green-500: #10b981;
+  --green-600: #059669;
+  --red-500: #ef4444;
+}
+
+/* Loading state */
+.tiptap-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--gray-5);
+  font-size: 1.1rem;
+}
+
+/* Full screen styles */
+.fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: var(--white, #ffffff) !important;
+}
+
+/* Tab styles */
+.scrollbar-tabs {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-3) transparent;
+}
+
+.scrollbar-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.scrollbar-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-tabs::-webkit-scrollbar-thumb {
+  background-color: var(--gray-3);
+  border-radius: 2px;
+}
+
+.scrollbar-tabs::-webkit-scrollbar-thumb:hover {
+  background-color: var(--gray-4);
+}
+
+/* Toolbar styles */
+.editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-2);
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.toolbar-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  color: var(--gray-5);
+}
+
+.toolbar-button:hover {
+  background: var(--gray-1);
+  border-color: var(--gray-2);
+  color: var(--gray-5);
+}
+
+.toolbar-button.active {
+  background: var(--blue-500);
+  border-color: var(--blue-500);
+  color: white;
+}
+
+.toolbar-button:active {
+  transform: scale(0.95);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.5rem;
+  background: var(--gray-2);
+  margin: 0 0.25rem;
+}
+
+/* Editor stats */
+.editor-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--gray-4);
+}
+
+.stat-item {
+  white-space: nowrap;
+}
+
+/* Save button */
+.save-button {
+  background: var(--green-500);
+  border: 1px solid var(--green-500);
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.save-button:hover:not(:disabled) {
+  background: var(--green-600);
+  border-color: var(--green-600);
+}
+
+.save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Full screen toggle */
+.fullscreen-toggle {
+  background: var(--gray-1);
+  border: 1px solid var(--gray-2);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  color: var(--gray-5);
+}
+
+.fullscreen-toggle:hover {
+  background: var(--gray-2);
+  border-color: var(--gray-3);
+}
+
+.fullscreen-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Basic editor styles */
+.tiptap {
+  outline: none;
+  min-height: 100%;
+}
+
+.tiptap :first-child {
+  margin-top: 0;
+}
+
+/* Text Alignment Styles */
+.tiptap [style*="text-align: left"] {
+  text-align: left !important;
+}
+
+.tiptap [style*="text-align: center"] {
+  text-align: center !important;
+}
+
+.tiptap [style*="text-align: right"] {
+  text-align: right !important;
+}
+
+.tiptap [style*="text-align: justify"] {
+  text-align: justify !important;
+}
+
+/* Resizable Image styles */
+.tiptap .resizable-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  margin: 1rem 0;
+  display: block;
+  transition: all 0.2s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.tiptap .resizable-image:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+/* Image wrapper for resize handles */
+.tiptap .image-wrapper {
+  position: relative !important;
+  display: inline-block !important;
+  margin: 1rem 0;
+  max-width: 100%;
+}
+
+/* Selected image state */
+.tiptap .resizable-image.selected {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+}
+
+/* Resize handles - using inline styles for better control */
+.tiptap .resize-handle {
+  position: absolute !important;
+  width: 12px !important;
+  height: 12px !important;
+  background: var(--blue-500) !important;
+  border: 2px solid var(--white) !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.tiptap .resize-handle:hover {
+  background: var(--blue-600) !important;
+  transform: scale(1.1) !important;
+}
+
+.tiptap .resize-handle.nw {
+  top: -16px !important;
+  left: -16px !important;
+  cursor: nw-resize !important;
+}
+
+.tiptap .resize-handle.ne {
+  top: -16px !important;
+  right: -16px !important;
+  cursor: ne-resize !important;
+}
+
+.tiptap .resize-handle.sw {
+  bottom: -16px !important;
+  left: -16px !important;
+  cursor: sw-resize !important;
+}
+
+.tiptap .resize-handle.se {
+  bottom: -16px !important;
+  right: -16px !important;
+  cursor: se-resize !important;
+}
+
+/* Center aligned images */
+.tiptap [style*="text-align: center"] .image-wrapper {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tiptap [style*="text-align: center"] .resizable-image {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Enhanced List styles */
+.tiptap ul,
+.tiptap ol {
+  padding: 0;
+  margin: 1.25rem 0;
+  list-style: none;
+}
+
+.tiptap ul li,
+.tiptap ol li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+/* Bullet list styling */
+.tiptap ul li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--blue-500);
+  font-weight: bold;
+  font-size: 1.2em;
+  line-height: 1.6;
+}
+
+/* Nested bullet lists */
+.tiptap ul ul li::before {
+  content: "◦";
+  color: var(--gray-4);
+}
+
+.tiptap ul ul ul li::before {
+  content: "▪";
+  color: var(--gray-3);
+}
+
+/* Numbered list styling */
+.tiptap ol {
+  counter-reset: list-counter;
+}
+
+.tiptap ol li {
+  counter-increment: list-counter;
+}
+
+.tiptap ol li::before {
+  content: counter(list-counter) ".";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--blue-500);
+  font-weight: 600;
+  font-size: 0.9em;
+  line-height: 1.6;
+  min-width: 1.2rem;
+}
+
+/* Nested numbered lists */
+.tiptap ol ol {
+  counter-reset: sub-counter;
+}
+
+.tiptap ol ol li {
+  counter-increment: sub-counter;
+}
+
+.tiptap ol ol li::before {
+  content: counter(list-counter) "." counter(sub-counter) ".";
+  color: var(--gray-4);
+}
+
+.tiptap ol ol ol {
+  counter-reset: sub-sub-counter;
+}
+
+.tiptap ol ol ol li {
+  counter-increment: sub-sub-counter;
+}
+
+.tiptap ol ol ol li::before {
+  content: counter(list-counter) "." counter(sub-counter) "." counter(sub-sub-counter) ".";
+  color: var(--gray-3);
+}
+
+/* List item content styling */
+.tiptap ul li p,
+.tiptap ol li p {
+  margin: 0;
+  display: inline;
+}
+
+/* Empty list items */
+.tiptap ul li:empty::before,
+.tiptap ol li:empty::before {
+  display: none;
+}
+
+/* Heading styles */
+.tiptap h1,
+.tiptap h2,
+.tiptap h3,
+.tiptap h4,
+.tiptap h5,
+.tiptap h6 {
+  line-height: 1.1;
+  margin-top: 2.5rem;
+  text-wrap: pretty;
+  font-weight: 600;
+}
+
+.tiptap h1,
+.tiptap h2 {
+  margin-top: 3.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.tiptap h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+}
+
+.tiptap h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.tiptap h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.tiptap h4,
+.tiptap h5,
+.tiptap h6 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* Paragraph styles */
+.tiptap p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+
+/* Indentation styles for paragraphs and headings */
+.tiptap p[style*="margin-left"],
+.tiptap h1[style*="margin-left"],
+.tiptap h2[style*="margin-left"],
+.tiptap h3[style*="margin-left"],
+.tiptap h4[style*="margin-left"],
+.tiptap h5[style*="margin-left"],
+.tiptap h6[style*="margin-left"] {
+  transition: margin-left 0.2s ease;
+  border-left: 2px solid transparent;
+  padding-left: 0.5rem;
+}
+
+/* Visual indicator for indented content */
+.tiptap p[style*="margin-left: 2em"],
+.tiptap h1[style*="margin-left: 2em"],
+.tiptap h2[style*="margin-left: 2em"],
+.tiptap h3[style*="margin-left: 2em"],
+.tiptap h4[style*="margin-left: 2em"],
+.tiptap h5[style*="margin-left: 2em"],
+.tiptap h6[style*="margin-left: 2em"] {
+  border-left-color: var(--gray-2);
+}
+
+.tiptap p[style*="margin-left: 4em"],
+.tiptap h1[style*="margin-left: 4em"],
+.tiptap h2[style*="margin-left: 4em"],
+.tiptap h3[style*="margin-left: 4em"],
+.tiptap h4[style*="margin-left: 4em"],
+.tiptap h5[style*="margin-left: 4em"],
+.tiptap h6[style*="margin-left: 4em"] {
+  border-left-color: var(--gray-3);
+}
+
+.tiptap p[style*="margin-left: 6em"],
+.tiptap h1[style*="margin-left: 6em"],
+.tiptap h2[style*="margin-left: 6em"],
+.tiptap h3[style*="margin-left: 6em"],
+.tiptap h4[style*="margin-left: 6em"],
+.tiptap h5[style*="margin-left: 6em"],
+.tiptap h6[style*="margin-left: 6em"] {
+  border-left-color: var(--gray-4);
+}
+
+.tiptap p[style*="margin-left: 8em"],
+.tiptap h1[style*="margin-left: 8em"],
+.tiptap h2[style*="margin-left: 8em"],
+.tiptap h3[style*="margin-left: 8em"],
+.tiptap h4[style*="margin-left: 8em"],
+.tiptap h5[style*="margin-left: 8em"],
+.tiptap h6[style*="margin-left: 8em"] {
+  border-left-color: var(--gray-5);
+}
+
+/* Code and preformatted text styles */
+.tiptap code {
+  background-color: var(--purple-light);
+  border-radius: 0.4rem;
+  color: var(--black);
+  font-size: 0.85rem;
+  padding: 0.25em 0.3em;
+  font-family: "JetBrainsMono", "Monaco", "Consolas", monospace;
+}
+
+.tiptap pre {
+  background: var(--black);
+  border-radius: 0.5rem;
+  color: var(--white);
+  font-family: "JetBrainsMono", "Monaco", "Consolas", monospace;
+  margin: 1.5rem 0;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+}
+
+.tiptap pre code {
+  background: none;
+  color: inherit;
+  font-size: 0.8rem;
+  padding: 0;
+}
+
+/* Highlight and mark styles */
+.tiptap mark {
+  background-color: #fef08a;
+  border-radius: 0.4rem;
+  box-decoration-break: clone;
+  padding: 0.1rem 0.3rem;
+}
+
+/* Blockquote styles */
+.tiptap blockquote {
+  border-left: 4px solid var(--blue-500);
+  margin: 1.5rem 0;
+  padding: 0.5rem 0 0.5rem 1rem;
+  background: var(--gray-1);
+  border-radius: 0 0.375rem 0.375rem 0;
+  font-style: italic;
+  color: var(--gray-5);
+}
+
+/* Horizontal rule */
+.tiptap hr {
+  border: none;
+  border-top: 2px solid var(--gray-2);
+  margin: 2rem 0;
+}
+
+/* Link styles */
+.tiptap a {
+  color: var(--blue-500);
+  text-decoration: underline;
+  text-decoration-color: var(--blue-500);
+  text-underline-offset: 2px;
+}
+
+.tiptap a:hover {
+  color: var(--blue-600);
+  text-decoration-color: var(--blue-600);
+}
+
+/* Full screen specific styles */
+.fullscreen .tiptap {
+  max-width: 800px;
+  margin: 0 auto;
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+.fullscreen .tiptap p {
+  margin-bottom: 1.5rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .editor-toolbar {
+    padding: 0.5rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .toolbar-left {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .toolbar-right {
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  .editor-stats {
+    font-size: 0.7rem;
+    gap: 0.5rem;
+  }
+  
+  /* Mobile list adjustments */
+  .tiptap ul li,
+  .tiptap ol li {
+    padding-left: 1.25rem;
+  }
+  
+  .tiptap ul li::before,
+  .tiptap ol li::before {
+    left: 0.25rem;
+  }
+  
+  /* Mobile image adjustments */
+  .tiptap .resizable-image {
+    margin: 0.75rem 0;
+    border-radius: 0.375rem;
+  }
+  
+  /* Mobile resize handles */
+  .tiptap .resize-handle {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  
+  .tiptap .resize-handle.nw {
+    top: -16px !important;
+    left: -16px !important;
+  }
+  
+  .tiptap .resize-handle.ne {
+    top: -16px !important;
+    right: -16px !important;
+  }
+  
+  .tiptap .resize-handle.sw {
+    bottom: -16px !important;
+    left: -16px !important;
+  }
+  
+  .tiptap .resize-handle.se {
+    bottom: -16px !important;
+    right: -16px !important;
+  }
+}
+
+/* Focus styles */
+.tiptap:focus {
+  outline: none;
+}
+
+/* Selection styles */
+.tiptap ::selection {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Placeholder styles */
+.tiptap p.is-editor-empty:first-child::before {
+  color: var(--gray-4);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

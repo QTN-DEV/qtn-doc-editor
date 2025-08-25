@@ -1,7 +1,7 @@
 import { DirectoryResponse, FileContentResponse } from "@/types/files";
 import { FullScanResponse } from "@/types/functions";
-
-const API_BASE = "http://localhost:8000/api/v1";
+const API_URL = import.meta.env.VITE_API_URL;
+const API_BASE = `${API_URL}/api/v1`;
 
 export const fileService = {
   async listDirectory(
